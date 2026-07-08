@@ -140,8 +140,9 @@ main{padding:28px 32px 60px;max-width:1400px;margin:0 auto;}
 
 /* cards / charts */
 .grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-bottom:20px;}
+.grid-3{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:18px;margin-bottom:20px;}
 .grid-1{display:grid;grid-template-columns:1fr;gap:18px;margin-bottom:20px;}
-@media(max-width:900px){.grid-2{grid-template-columns:1fr;}}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr;}.grid-3{grid-template-columns:1fr;}}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 22px;}
 .card h3{font-family:var(--font-display);font-size:15px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
 .card .card-sub{font-size:12px;color:var(--text-dim);margin-bottom:16px;}
@@ -256,7 +257,7 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
         <div class="kpi"><div class="label">Compartilha conteúdo</div><div class="value" id="kpi-cont">–</div></div>
       </div>
 
-      <div class="grid-2">
+      <div class="grid-3">
         <div class="card">
           <h3>Atratividade média por shopping</h3>
           <div class="card-sub">Leads recebidos / estoque no integrador</div>
@@ -266,6 +267,11 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
           <h3>Classificação de performance</h3>
           <div class="card-sub">Distribuição das lojas por faixa</div>
           <div class="chart-wrap"><canvas id="chart-classificacao"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>Estoque estimado x Estoque no integrador</h3>
+          <div class="card-sub">Comparativo total do estoque informado pela loja e do estoque publicado</div>
+          <div class="chart-wrap"><canvas id="chart-estoque-comp"></canvas></div>
         </div>
       </div>
 
@@ -575,6 +581,7 @@ function render(){
   renderKPIs(data);
   renderChartShoppings(data);
   renderChartClassificacao(data);
+  renderChartEstoqueComparativo(data);
   renderChartEvolucao(data);
   renderChartPortais(data);
   renderRanking(data);
@@ -625,6 +632,22 @@ function renderChartClassificacao(data){
       labels: ['Ótima','Boa','Regular','Ruim'],
       datasets: [{ data: [counts.otima,counts.boa,counts.regular,counts.ruim],
         backgroundColor: ['#3ddc97','#ffd100','#ffe066','#ff6b4a'], borderWidth:0 }]
+    },
+    options: baseOpts({legend:true})
+  });
+}
+
+function renderChartEstoqueComparativo(data){
+  const totalEstimado = data.reduce((a,d)=>a+(d.estoqueEstimado||0),0);
+  const totalIntegrador = data.reduce((a,d)=>a+Math.max(0,(d.estoqueIntegrador||0)),0);
+  destroyChart('estoqueComp');
+  const ctx = document.getElementById('chart-estoque-comp');
+  charts.estoqueComp = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: ['Estoque Estimado','Estoque Integrador'],
+      datasets: [{ data: [totalEstimado, totalIntegrador],
+        backgroundColor: ['#ffd100','#3ddc97'], borderWidth:0 }]
     },
     options: baseOpts({legend:true})
   });
