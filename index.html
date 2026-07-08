@@ -608,7 +608,7 @@ function render(){
 
 function renderKPIs(data){
   const totalLeads = data.reduce((a,d)=>a+(d.leadsRecebidos||0),0);
-  const mediaIndice = data.length ? (data.reduce((a,d)=>a+(d.atratividade||0),0)/data.length) : 0;
+  const mediaIndice = indicePonderado(data);
   const pctWhats = pct(data, d=>d.whatsapp==='Sim');
   const pctAtual = pct(data, d=>d.atualizacao==='0 até 7 dias');
   const pctCrm = pct(data, d=>d.respondeLead==='Com CRM');
@@ -620,13 +620,18 @@ function renderKPIs(data){
   document.getElementById('kpi-crm').innerHTML = pctCrm + '<small>%</small>';
   document.getElementById('kpi-cont').innerHTML = pctCont + '<small>%</small>';
 }
+function indicePonderado(rows){
+  const leads = rows.reduce((a,d)=>a+(d.leadsRecebidos||0),0);
+  const estoque = rows.reduce((a,d)=>a+Math.max(0,(d.estoqueIntegrador||0)),0);
+  return estoque > 0 ? leads/estoque : 0;
+}
 function pct(data, fn){
   if (!data.length) return 0;
   return Math.round(100 * data.filter(fn).length / data.length);
 }
 
 function renderChartShoppings(data){
-  const byShopping = groupAvg(data, 'shopping', 'atratividade');
+  const byShopping = groupPooled(data, 'shopping');
   destroyChart('shoppings');
   const ctx = document.getElementById('chart-shoppings');
   charts.shoppings = new Chart(ctx, {
@@ -688,7 +693,7 @@ function renderChartEvolucao(data){
     label: s,
     data: periodos.map(p=>{
       const rows = ALL_DATA.filter(d=>d.shopping===s && d.periodo===p);
-      return rows.length ? avg(rows.map(r=>r.atratividade||0)) : null;
+      return rows.length ? indicePonderado(rows) : null;
     }),
     borderColor: CHART_COLORS[i%CHART_COLORS.length],
     backgroundColor: 'transparent',
@@ -772,6 +777,16 @@ function groupAvg(data, key, valKey){
   });
   const out = {};
   Object.keys(groups).sort().forEach(k => out[k] = +avg(groups[k]).toFixed(2));
+  return out;
+}
+function groupPooled(data, key){
+  const groups = {};
+  data.forEach(d=>{
+    const k = d[key] || '—';
+    (groups[k] = groups[k] || []).push(d);
+  });
+  const out = {};
+  Object.keys(groups).sort().forEach(k => out[k] = +indicePonderado(groups[k]).toFixed(2));
   return out;
 }
 function baseOpts({legend=false, indexAxis='x', datalabels=null}={}){
