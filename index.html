@@ -3,35 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Painel de Vistoria de Lojistas — Arena Motors</title>
+<title>RAI Performance 2.0 — Arena Motors</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{
-  --asphalt:#12161d;
-  --asphalt-2:#1a2029;
-  --surface:#1f2630;
-  --surface-2:#262e3a;
-  --line:#333d4b;
-  --text:#eef1f5;
-  --text-dim:#8f9aab;
-  --amber:#ffb020;
-  --amber-dim:#7a5a1c;
-  --good:#34d399;
-  --regular:#fbbf24;
-  --ruim:#f87171;
-  --font-display:'Oswald',sans-serif;
+  --asphalt:#0a0a0a;
+  --asphalt-2:#141414;
+  --surface:#141414;
+  --surface-2:#1c1c1c;
+  --line:#2c2c2c;
+  --text:#f5f5f0;
+  --text-dim:#9a9a92;
+  --text-dim-2:#5c5c56;
+  --amber:#ffd100;
+  --amber-dim:#4d4420;
+  --good:#3ddc97;
+  --good-dim:#1f4d3d;
+  --regular:#ffe066;
+  --ruim:#ff6b4a;
+  --ruim-dim:#4d2a1f;
+  --font-display:'Space Grotesk',sans-serif;
   --font-body:'Inter',sans-serif;
-  --font-mono:'IBM Plex Mono',monospace;
+  --font-mono:'JetBrains Mono',monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
-  background:
-    radial-gradient(circle at 15% 0%, rgba(255,176,32,0.06), transparent 40%),
-    var(--asphalt);
+  background:var(--asphalt);
   color:var(--text);
   font-family:var(--font-body);
   min-height:100vh;
@@ -50,7 +51,7 @@ body{
 .gate-card{
   background:var(--surface);
   border:1px solid var(--line);
-  border-radius:4px;
+  border-radius:16px;
   padding:44px 40px;
   width:100%;max-width:380px;
   position:relative;
@@ -71,14 +72,14 @@ body{
 .gate-card p{color:var(--text-dim);font-size:13.5px;margin-bottom:24px;line-height:1.5;}
 #gate input{
   width:100%;padding:13px 14px;background:var(--asphalt-2);
-  border:1px solid var(--line);border-radius:3px;color:var(--text);
+  border:1px solid var(--line);border-radius:8px;color:var(--text);
   font-family:var(--font-mono);font-size:14px;margin-bottom:14px;
   letter-spacing:.04em;
 }
 #gate input:focus{outline:none;border-color:var(--amber);}
 #gate button{
   width:100%;padding:13px;background:var(--amber);color:#161006;border:none;
-  border-radius:3px;font-family:var(--font-display);font-weight:600;
+  border-radius:100px;font-family:var(--font-display);font-weight:600;
   font-size:14.5px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;
   transition:filter .15s;
 }
@@ -121,14 +122,14 @@ main{padding:28px 32px 60px;max-width:1400px;margin:0 auto;}
 .filters{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;align-items:center;}
 .filters select{
   background:var(--surface);border:1px solid var(--line);color:var(--text);
-  padding:9px 12px;border-radius:3px;font-family:var(--font-body);font-size:13px;
+  padding:9px 12px;border-radius:8px;font-family:var(--font-body);font-size:13px;
 }
 .filters label{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-right:-6px;}
 
 /* KPI */
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:28px;}
 .kpi{
-  background:var(--surface);border:1px solid var(--line);border-radius:4px;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
   padding:18px 20px;position:relative;overflow:hidden;
 }
 .kpi .label{font-family:var(--font-mono);font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
@@ -141,7 +142,7 @@ main{padding:28px 32px 60px;max-width:1400px;margin:0 auto;}
 .grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-bottom:20px;}
 .grid-1{display:grid;grid-template-columns:1fr;gap:18px;margin-bottom:20px;}
 @media(max-width:900px){.grid-2{grid-template-columns:1fr;}}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:20px 22px;}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 22px;}
 .card h3{font-family:var(--font-display);font-size:15px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
 .card .card-sub{font-size:12px;color:var(--text-dim);margin-bottom:16px;}
 .chart-wrap{position:relative;height:280px;}
@@ -154,17 +155,17 @@ main{padding:28px 32px 60px;max-width:1400px;margin:0 auto;}
 .rank-name{flex:1;min-width:0;}
 .rank-name .l{font-size:13.5px;font-weight:500;}
 .rank-name .s{font-size:11px;color:var(--text-dim);}
-.rank-bar-wrap{flex:1;background:var(--asphalt-2);border-radius:3px;height:6px;overflow:hidden;max-width:140px;}
-.rank-bar{height:100%;border-radius:3px;}
+.rank-bar-wrap{flex:1;background:var(--asphalt-2);border-radius:100px;height:6px;overflow:hidden;max-width:140px;}
+.rank-bar{height:100%;border-radius:100px;}
 .rank-val{font-family:var(--font-mono);font-size:13px;width:44px;text-align:right;}
 
-.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10.5px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.04em;}
-.badge.otima{background:rgba(52,211,153,.15);color:var(--good);}
-.badge.boa{background:rgba(255,176,32,.15);color:var(--amber);}
-.badge.regular{background:rgba(251,191,36,.15);color:var(--regular);}
-.badge.ruim{background:rgba(248,113,113,.15);color:var(--ruim);}
-.badge.sim{background:rgba(52,211,153,.15);color:var(--good);}
-.badge.nao{background:rgba(248,113,113,.15);color:var(--ruim);}
+.badge{display:inline-block;padding:3px 9px;border-radius:100px;font-size:10.5px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.04em;}
+.badge.otima{background:rgba(61,220,151,.15);color:var(--good);}
+.badge.boa{background:rgba(255,209,0,.15);color:var(--amber);}
+.badge.regular{background:rgba(255,224,102,.15);color:var(--regular);}
+.badge.ruim{background:rgba(255,107,74,.15);color:var(--ruim);}
+.badge.sim{background:rgba(61,220,151,.15);color:var(--good);}
+.badge.nao{background:rgba(255,107,74,.15);color:var(--ruim);}
 
 /* table */
 .table-wrap{overflow-x:auto;}
@@ -183,12 +184,12 @@ tbody tr:hover{background:rgba(255,255,255,0.02);}
 .field label{display:block;font-family:var(--font-mono);font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
 .field input,.field select{
   width:100%;padding:10px 11px;background:var(--asphalt-2);border:1px solid var(--line);
-  border-radius:3px;color:var(--text);font-family:var(--font-body);font-size:13.5px;
+  border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:13.5px;
 }
 .field input:focus,.field select:focus{outline:none;border-color:var(--amber);}
 .form-actions{margin-top:20px;display:flex;gap:12px;align-items:center;}
 .btn{
-  padding:11px 22px;border-radius:3px;font-family:var(--font-display);font-weight:600;
+  padding:11px 22px;border-radius:100px;font-family:var(--font-display);font-weight:600;
   font-size:13.5px;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;border:none;
 }
 .btn.primary{background:var(--amber);color:#161006;}
@@ -208,7 +209,7 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
 <div id="gate">
   <div class="gate-card">
     <div class="gate-eyebrow">Acesso restrito</div>
-    <h1>Painel de Vistoria de Lojistas</h1>
+    <h1>RAI Performance 2.0</h1>
     <p>Arena Motors · Gestão de Shoppings — informe a senha de acesso para consultar e alimentar os dados de vistoria.</p>
     <input type="password" id="gate-pass" placeholder="Senha de acesso" autocomplete="off">
     <button onclick="tryLogin()">Entrar</button>
@@ -220,7 +221,7 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
   <header class="top">
     <div>
       <div class="brand-eyebrow">Arena Motors · Gestão de Shoppings</div>
-      <h1>Painel de Vistoria de Lojistas</h1>
+      <h1>RAI Performance 2.0</h1>
       <div class="sub">Estoque, atendimento e atratividade por loja — cortes semanais</div>
     </div>
     <div class="sync-status"><span class="dot" id="sync-dot"></span><span id="sync-text">conectando ao banco...</span></div>
@@ -230,7 +231,7 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
     <button class="active" data-view="visao">Visão Geral</button>
     <button data-view="ranking">Ranking de Lojas</button>
     <button data-view="tabela">Tabela Detalhada</button>
-    <button data-view="lancar">Lançar Vistoria</button>
+    <button data-view="lancar">Lançar Dados</button>
   </nav>
 
   <main>
@@ -325,7 +326,7 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
     <!-- ===================== LANÇAR ===================== -->
     <section class="view" id="view-lancar">
       <div class="card">
-        <h3>Nova vistoria de loja</h3>
+        <h3>Novo lançamento de dados</h3>
         <div class="card-sub">Preencha os dados do corte semanal — os campos são salvos direto na base online</div>
 
         <div class="section-title">Identificação</div>
@@ -383,7 +384,7 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
 
   </main>
 
-  <footer>Painel de Vistoria de Lojistas — Arena Motors · dados salvos em tempo real via Firebase</footer>
+  <footer>RAI Performance 2.0 — Arena Motors · dados salvos em tempo real via Firebase</footer>
 </div>
 
 <script>
@@ -542,7 +543,7 @@ function getFiltered(){
 let charts = {};
 function destroyChart(key){ if(charts[key]){ charts[key].destroy(); delete charts[key]; } }
 
-const CHART_COLORS = ['#ffb020','#34d399','#60a5fa','#f87171','#c084fc','#fbbf24'];
+const CHART_COLORS = ['#ffd100','#3ddc97','#60a5fa','#ff6b4a','#c084fc','#ffe066'];
 
 /* ---------------- RENDER ---------------- */
 function render(){
@@ -599,7 +600,7 @@ function renderChartClassificacao(data){
     data: {
       labels: ['Ótima','Boa','Regular','Ruim'],
       datasets: [{ data: [counts.otima,counts.boa,counts.regular,counts.ruim],
-        backgroundColor: ['#34d399','#ffb020','#fbbf24','#f87171'], borderWidth:0 }]
+        backgroundColor: ['#3ddc97','#ffd100','#ffe066','#ff6b4a'], borderWidth:0 }]
     },
     options: baseOpts({legend:true})
   });
@@ -657,7 +658,7 @@ function renderRanking(data){
   }).join('') || '<div class="card-sub">Nenhum registro para os filtros selecionados.</div>';
 }
 function colorFor(key){
-  return {otima:'#34d399',boa:'#ffb020',regular:'#fbbf24',ruim:'#f87171'}[key];
+  return {otima:'#3ddc97',boa:'#ffd100',regular:'#ffe066',ruim:'#ff6b4a'}[key];
 }
 
 function renderTabela(data){
@@ -694,15 +695,15 @@ function baseOpts({legend=false, indexAxis='x'}={}){
     indexAxis,
     responsive:true, maintainAspectRatio:false,
     plugins:{
-      legend:{ display: legend, labels:{ color:'#8f9aab', font:{family:'Inter', size:11} } },
-      tooltip:{ backgroundColor:'#1f2630', borderColor:'#333d4b', borderWidth:1, titleColor:'#eef1f5', bodyColor:'#eef1f5' }
+      legend:{ display: legend, labels:{ color:'#9a9a92', font:{family:'Inter', size:11} } },
+      tooltip:{ backgroundColor:'#141414', borderColor:'#2c2c2c', borderWidth:1, titleColor:'#f5f5f0', bodyColor:'#f5f5f0' }
     },
     scales: indexAxis==='y' ? {
-      x:{ ticks:{color:'#8f9aab', font:{family:'IBM Plex Mono', size:10.5}}, grid:{color:'#262e3a'} },
-      y:{ ticks:{color:'#8f9aab', font:{family:'Inter', size:11.5}}, grid:{display:false} }
+      x:{ ticks:{color:'#9a9a92', font:{family:'JetBrains Mono', size:10.5}}, grid:{color:'#1c1c1c'} },
+      y:{ ticks:{color:'#9a9a92', font:{family:'Inter', size:11.5}}, grid:{display:false} }
     } : {
-      x:{ ticks:{color:'#8f9aab', font:{family:'Inter', size:11.5}}, grid:{display:false} },
-      y:{ ticks:{color:'#8f9aab', font:{family:'IBM Plex Mono', size:10.5}}, grid:{color:'#262e3a'} }
+      x:{ ticks:{color:'#9a9a92', font:{family:'Inter', size:11.5}}, grid:{display:false} },
+      y:{ ticks:{color:'#9a9a92', font:{family:'JetBrains Mono', size:10.5}}, grid:{color:'#1c1c1c'} }
     }
   };
 }
