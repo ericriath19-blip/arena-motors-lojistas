@@ -567,22 +567,18 @@ function periodoOrdinal(periodo){
   const m = /a\s*(\d+)\//.exec(periodo || '');
   return m ? parseInt(m[1], 10) : 0;
 }
-function dedupUltimoPeriodo(rows){
-  const porLoja = {};
-  rows.forEach(d=>{
-    const chave = d.shopping + '|' + d.loja;
-    if (!porLoja[chave] || periodoOrdinal(d.periodo) > periodoOrdinal(porLoja[chave].periodo)){
-      porLoja[chave] = d;
-    }
-  });
-  return Object.values(porLoja);
-}
 function getFiltered(){
   const s = document.getElementById('f-shopping-1').value;
   const l = document.getElementById('f-loja-1').value;
   const p = document.getElementById('f-periodo-1').value;
   let rows = ALL_DATA.filter(d => (!s || d.shopping===s) && (!l || d.loja===l));
-  rows = p ? rows.filter(d => d.periodo===p) : dedupUltimoPeriodo(rows);
+  if (p){
+    rows = rows.filter(d => d.periodo===p);
+  } else if (rows.length) {
+    const periodos = [...new Set(rows.map(d=>d.periodo))];
+    const maisRecente = periodos.reduce((a,b)=> periodoOrdinal(b) > periodoOrdinal(a) ? b : a, periodos[0]);
+    rows = rows.filter(d => d.periodo===maisRecente);
+  }
   return rows;
 }
 
