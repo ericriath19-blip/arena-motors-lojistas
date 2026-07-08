@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Vistoria de Lojistas — Arena Motors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --asphalt:#12161d;
+  --asphalt-2:#1a2029;
+  --surface:#1f2630;
+  --surface-2:#262e3a;
+  --line:#333d4b;
+  --text:#eef1f5;
+  --text-dim:#8f9aab;
+  --amber:#ffb020;
+  --amber-dim:#7a5a1c;
+  --good:#34d399;
+  --regular:#fbbf24;
+  --ruim:#f87171;
+  --font-display:'Oswald',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(circle at 15% 0%, rgba(255,176,32,0.06), transparent 40%),
+    var(--asphalt);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--amber);color:#14181f;}
+
+/* ---------- LOGIN GATE ---------- */
+#gate{
+  position:fixed;inset:0;z-index:999;
+  background:var(--asphalt);
+  display:flex;align-items:center;justify-content:center;
+  background-image:
+    repeating-linear-gradient(135deg, rgba(255,255,255,0.015) 0 2px, transparent 2px 14px);
+}
+.gate-card{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:44px 40px;
+  width:100%;max-width:380px;
+  position:relative;
+  overflow:hidden;
+}
+.gate-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:4px;
+  background:linear-gradient(90deg,var(--amber),var(--good));
+}
+.gate-eyebrow{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+  color:var(--amber);text-transform:uppercase;margin-bottom:10px;
+}
+.gate-card h1{
+  font-family:var(--font-display);font-weight:600;font-size:26px;
+  text-transform:uppercase;letter-spacing:.02em;margin-bottom:6px;
+}
+.gate-card p{color:var(--text-dim);font-size:13.5px;margin-bottom:24px;line-height:1.5;}
+#gate input{
+  width:100%;padding:13px 14px;background:var(--asphalt-2);
+  border:1px solid var(--line);border-radius:3px;color:var(--text);
+  font-family:var(--font-mono);font-size:14px;margin-bottom:14px;
+  letter-spacing:.04em;
+}
+#gate input:focus{outline:none;border-color:var(--amber);}
+#gate button{
+  width:100%;padding:13px;background:var(--amber);color:#161006;border:none;
+  border-radius:3px;font-family:var(--font-display);font-weight:600;
+  font-size:14.5px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;
+  transition:filter .15s;
+}
+#gate button:hover{filter:brightness(1.1);}
+#gate-error{color:var(--ruim);font-size:12.5px;margin-top:10px;display:none;font-family:var(--font-mono);}
+
+/* ---------- APP SHELL ---------- */
+#app{display:none;}
+header.top{
+  border-bottom:1px solid var(--line);
+  padding:22px 32px;
+  display:flex;justify-content:space-between;align-items:flex-end;
+  flex-wrap:wrap;gap:16px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+}
+.brand-eyebrow{font-family:var(--font-mono);font-size:11px;color:var(--amber);letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px;}
+header.top h1{font-family:var(--font-display);font-size:28px;font-weight:600;text-transform:uppercase;letter-spacing:.01em;}
+header.top .sub{color:var(--text-dim);font-size:13px;margin-top:4px;}
+.sync-status{font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim);display:flex;align-items:center;gap:8px;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 8px var(--good);}
+.dot.off{background:var(--ruim);box-shadow:0 0 8px var(--ruim);}
+
+nav.tabs{
+  display:flex;gap:2px;padding:0 32px;border-bottom:1px solid var(--line);
+  background:var(--asphalt-2);overflow-x:auto;
+}
+nav.tabs button{
+  background:none;border:none;color:var(--text-dim);padding:14px 18px;
+  font-family:var(--font-display);font-size:13.5px;text-transform:uppercase;
+  letter-spacing:.05em;cursor:pointer;border-bottom:2px solid transparent;
+  white-space:nowrap;
+}
+nav.tabs button.active{color:var(--amber);border-bottom-color:var(--amber);}
+
+main{padding:28px 32px 60px;max-width:1400px;margin:0 auto;}
+.view{display:none;}
+.view.active{display:block;}
+
+/* filters */
+.filters{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;align-items:center;}
+.filters select{
+  background:var(--surface);border:1px solid var(--line);color:var(--text);
+  padding:9px 12px;border-radius:3px;font-family:var(--font-body);font-size:13px;
+}
+.filters label{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-right:-6px;}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:28px;}
+.kpi{
+  background:var(--surface);border:1px solid var(--line);border-radius:4px;
+  padding:18px 20px;position:relative;overflow:hidden;
+}
+.kpi .label{font-family:var(--font-mono);font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
+.kpi .value{font-family:var(--font-display);font-size:32px;font-weight:600;}
+.kpi .value small{font-size:15px;color:var(--text-dim);font-weight:400;}
+.kpi.accent{border-color:var(--amber-dim);}
+.kpi.accent .value{color:var(--amber);}
+
+/* cards / charts */
+.grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-bottom:20px;}
+.grid-1{display:grid;grid-template-columns:1fr;gap:18px;margin-bottom:20px;}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr;}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:20px 22px;}
+.card h3{font-family:var(--font-display);font-size:15px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+.card .card-sub{font-size:12px;color:var(--text-dim);margin-bottom:16px;}
+.chart-wrap{position:relative;height:280px;}
+.chart-wrap.tall{height:360px;}
+
+/* ranking list */
+.rank-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);}
+.rank-row:last-child{border-bottom:none;}
+.rank-n{font-family:var(--font-mono);color:var(--text-dim);font-size:12px;width:20px;}
+.rank-name{flex:1;min-width:0;}
+.rank-name .l{font-size:13.5px;font-weight:500;}
+.rank-name .s{font-size:11px;color:var(--text-dim);}
+.rank-bar-wrap{flex:1;background:var(--asphalt-2);border-radius:3px;height:6px;overflow:hidden;max-width:140px;}
+.rank-bar{height:100%;border-radius:3px;}
+.rank-val{font-family:var(--font-mono);font-size:13px;width:44px;text-align:right;}
+
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10.5px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.04em;}
+.badge.otima{background:rgba(52,211,153,.15);color:var(--good);}
+.badge.boa{background:rgba(255,176,32,.15);color:var(--amber);}
+.badge.regular{background:rgba(251,191,36,.15);color:var(--regular);}
+.badge.ruim{background:rgba(248,113,113,.15);color:var(--ruim);}
+.badge.sim{background:rgba(52,211,153,.15);color:var(--good);}
+.badge.nao{background:rgba(248,113,113,.15);color:var(--ruim);}
+
+/* table */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{
+  text-align:left;padding:10px 12px;font-family:var(--font-mono);font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);
+  border-bottom:1px solid var(--line);white-space:nowrap;
+}
+td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+tbody tr:hover{background:rgba(255,255,255,0.02);}
+
+/* form */
+.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+@media(max-width:800px){.form-grid{grid-template-columns:1fr 1fr;}}
+.field label{display:block;font-family:var(--font-mono);font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+.field input,.field select{
+  width:100%;padding:10px 11px;background:var(--asphalt-2);border:1px solid var(--line);
+  border-radius:3px;color:var(--text);font-family:var(--font-body);font-size:13.5px;
+}
+.field input:focus,.field select:focus{outline:none;border-color:var(--amber);}
+.form-actions{margin-top:20px;display:flex;gap:12px;align-items:center;}
+.btn{
+  padding:11px 22px;border-radius:3px;font-family:var(--font-display);font-weight:600;
+  font-size:13.5px;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;border:none;
+}
+.btn.primary{background:var(--amber);color:#161006;}
+.btn.primary:hover{filter:brightness(1.1);}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text-dim);}
+.btn.ghost:hover{color:var(--text);border-color:var(--text-dim);}
+#form-msg{font-family:var(--font-mono);font-size:12px;color:var(--good);}
+
+.section-title{font-family:var(--font-display);font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);margin:28px 0 12px;}
+.section-title:first-child{margin-top:0;}
+
+footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5px;font-family:var(--font-mono);}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-card">
+    <div class="gate-eyebrow">Acesso restrito</div>
+    <h1>Painel de Vistoria de Lojistas</h1>
+    <p>Arena Motors · Gestão de Shoppings — informe a senha de acesso para consultar e alimentar os dados de vistoria.</p>
+    <input type="password" id="gate-pass" placeholder="Senha de acesso" autocomplete="off">
+    <button onclick="tryLogin()">Entrar</button>
+    <div id="gate-error">Senha incorreta. Tente novamente.</div>
+  </div>
+</div>
+
+<div id="app">
+  <header class="top">
+    <div>
+      <div class="brand-eyebrow">Arena Motors · Gestão de Shoppings</div>
+      <h1>Painel de Vistoria de Lojistas</h1>
+      <div class="sub">Estoque, atendimento e atratividade por loja — cortes semanais</div>
+    </div>
+    <div class="sync-status"><span class="dot" id="sync-dot"></span><span id="sync-text">conectando ao banco...</span></div>
+  </header>
+
+  <nav class="tabs">
+    <button class="active" data-view="visao">Visão Geral</button>
+    <button data-view="ranking">Ranking de Lojas</button>
+    <button data-view="tabela">Tabela Detalhada</button>
+    <button data-view="lancar">Lançar Vistoria</button>
+  </nav>
+
+  <main>
+
+    <!-- ===================== VISÃO GERAL ===================== -->
+    <section class="view active" id="view-visao">
+      <div class="filters">
+        <label>Shopping</label>
+        <select id="f-shopping-1"><option value="">Todos</option></select>
+        <label>Período</label>
+        <select id="f-periodo-1"><option value="">Todos</option></select>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi accent"><div class="label">Leads recebidos</div><div class="value" id="kpi-leads">–</div></div>
+        <div class="kpi"><div class="label">Índice médio de atratividade</div><div class="value" id="kpi-indice">–</div></div>
+        <div class="kpi"><div class="label">WhatsApp conectado</div><div class="value" id="kpi-whats">–</div></div>
+        <div class="kpi"><div class="label">Estoque atualizado (0–7 dias)</div><div class="value" id="kpi-atual">–</div></div>
+        <div class="kpi"><div class="label">Com CRM ativo</div><div class="value" id="kpi-crm">–</div></div>
+        <div class="kpi"><div class="label">Compartilha conteúdo</div><div class="value" id="kpi-cont">–</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Atratividade média por shopping</h3>
+          <div class="card-sub">Leads recebidos / estoque no integrador</div>
+          <div class="chart-wrap"><canvas id="chart-shoppings"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>Classificação de performance</h3>
+          <div class="card-sub">Distribuição das lojas por faixa</div>
+          <div class="chart-wrap"><canvas id="chart-classificacao"></canvas></div>
+        </div>
+      </div>
+
+      <div class="grid-1">
+        <div class="card">
+          <h3>Evolução do índice por período</h3>
+          <div class="card-sub">Média de atratividade nos cortes semanais do mês, por shopping</div>
+          <div class="chart-wrap"><canvas id="chart-evolucao"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Estoque total por portal</h3>
+        <div class="card-sub">Soma do estoque publicado em cada canal</div>
+        <div class="chart-wrap"><canvas id="chart-portais"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ===================== RANKING ===================== -->
+    <section class="view" id="view-ranking">
+      <div class="filters">
+        <label>Shopping</label>
+        <select id="f-shopping-2"><option value="">Todos</option></select>
+        <label>Período</label>
+        <select id="f-periodo-2"><option value="">Todos</option></select>
+      </div>
+      <div class="card">
+        <h3>Ranking por índice de atratividade de estoque</h3>
+        <div class="card-sub">Leads recebidos em relação ao estoque disponível — quanto maior, melhor</div>
+        <div id="rank-list"></div>
+      </div>
+    </section>
+
+    <!-- ===================== TABELA ===================== -->
+    <section class="view" id="view-tabela">
+      <div class="filters">
+        <label>Shopping</label>
+        <select id="f-shopping-3"><option value="">Todos</option></select>
+        <label>Período</label>
+        <select id="f-periodo-3"><option value="">Todos</option></select>
+      </div>
+      <div class="card">
+        <h3>Vistorias registradas</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Período</th><th>Shopping</th><th>Loja</th><th>Gestor</th>
+                <th>Estoque Est.</th><th>Estoque Integr.</th><th>WhatsApp</th>
+                <th>Atualização</th><th>CRM</th><th>Leads</th><th>Índice</th>
+                <th>Classificação</th><th>Conteúdo</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-detalhe"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== LANÇAR ===================== -->
+    <section class="view" id="view-lancar">
+      <div class="card">
+        <h3>Nova vistoria de loja</h3>
+        <div class="card-sub">Preencha os dados do corte semanal — os campos são salvos direto na base online</div>
+
+        <div class="section-title">Identificação</div>
+        <div class="form-grid">
+          <div class="field"><label>Período</label><input id="in-periodo" placeholder="Ex: De 22 a 28/06"></div>
+          <div class="field"><label>Shopping</label>
+            <select id="in-shopping">
+              <option>Leste</option><option>Sto Andre</option><option>Nações</option><option>Sul</option>
+            </select>
+          </div>
+          <div class="field"><label>Loja</label><input id="in-loja" placeholder="Nome da loja"></div>
+          <div class="field"><label>Gestor responsável</label><input id="in-gestor" placeholder="Nome do gestor"></div>
+        </div>
+
+        <div class="section-title">Estoque e atendimento</div>
+        <div class="form-grid">
+          <div class="field"><label>Estoque estimado</label><input type="number" id="in-est" value="0"></div>
+          <div class="field"><label>Estoque no integrador</label><input type="number" id="in-integ" value="0"></div>
+          <div class="field"><label>Leads recebidos</label><input type="number" id="in-leads" value="0"></div>
+          <div class="field"><label>WhatsApp conectado?</label>
+            <select id="in-whats"><option>Sim</option><option>Não</option></select>
+          </div>
+          <div class="field"><label>Estoque atualizado</label>
+            <select id="in-atual">
+              <option>0 até 7 dias</option><option>7 até 14 dias</option>
+              <option>14 até 20 dias</option><option>Acima de 20 dias</option>
+            </select>
+          </div>
+          <div class="field"><label>Responde lead</label>
+            <select id="in-crm"><option>Com CRM</option><option>Sem CRM</option></select>
+          </div>
+          <div class="field"><label>Compartilha nosso conteúdo?</label>
+            <select id="in-cont"><option>Sim</option><option>Não</option></select>
+          </div>
+        </div>
+
+        <div class="section-title">Estoque publicado por portal</div>
+        <div class="form-grid">
+          <div class="field"><label>WebMotors</label><input type="number" id="in-webmotors" value="0"></div>
+          <div class="field"><label>OLX</label><input type="number" id="in-olx" value="0"></div>
+          <div class="field"><label>iCarros</label><input type="number" id="in-icarros" value="0"></div>
+          <div class="field"><label>Mobiauto</label><input type="number" id="in-mobiauto" value="0"></div>
+          <div class="field"><label>UsadosBR</label><input type="number" id="in-usadosbr" value="0"></div>
+          <div class="field"><label>Site próprio</label><input type="number" id="in-site" value="0"></div>
+          <div class="field"><label>Na Pista</label><input type="number" id="in-napista" value="0"></div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn primary" onclick="salvarVistoria()">Salvar vistoria</button>
+          <button class="btn ghost" onclick="limparForm()">Limpar</button>
+          <span id="form-msg"></span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>Painel de Vistoria de Lojistas — Arena Motors · dados salvos em tempo real via Firebase</footer>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIGURAÇÃO DO FIREBASE
+   Substitua os valores abaixo pelas credenciais do SEU projeto Firebase.
+   Veja o passo a passo em CONFIGURACAO.md
+===================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyADj6CWOUh66_G7qMoFmLxzorSRmwzhG3Q",
+  authDomain: "arena-motors-dashboard.firebaseapp.com",
+  projectId: "arena-motors-dashboard",
+  storageBucket: "arena-motors-dashboard.firebasestorage.app",
+  messagingSenderId: "668179364218",
+  appId: "1:668179364218:web:7fc08915222efb30c13ec3"
+};
+const COLLECTION = "conferencias";
+const SENHA_PAINEL = "arenamotors2026";
+
+let db = null;
+let firebaseOk = false;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  firebaseOk = true;
+} catch(e) {
+  console.warn("Firebase não configurado ainda:", e);
+}
+
+/* =====================================================================
+   DADOS SEMENTE (histórico importado da planilha RAI_01_JUNHO_21.xlsx)
+   Usados como base inicial enquanto o Firestore não estiver configurado
+   ou não tiver registros. Uma vez conectado, o Firestore vira a fonte
+   principal e novos lançamentos entram por lá.
+===================================================================== */
+const SEED_DATA = [{"periodo": "De 01 a 21/06", "shopping": "Leste", "loja": "AUTO PARREIRA", "gestor": "Renato", "estoqueEstimado": 20.0, "estoqueIntegrador": 32.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 68.0, "atratividade": 2.12, "compartilha": "Sim", "portais": {"webmotors": 159.0, "olx": 190.0, "icarros": 165.0, "mobiauto": 187.0, "usadosbr": 195.0, "site": 192.0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Leste", "loja": "CH MOTORS", "gestor": "Wladimir", "estoqueEstimado": 12.0, "estoqueIntegrador": 12.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 59.0, "atratividade": 4.92, "compartilha": "Sim", "portais": {"webmotors": 5.0, "olx": 1.0, "icarros": -98.0, "mobiauto": 17.0, "usadosbr": 18.0, "site": -1.0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Leste", "loja": "ELITE MOTORS", "gestor": "Rebeca", "estoqueEstimado": 35.0, "estoqueIntegrador": 19.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 67.0, "atratividade": 3.53, "compartilha": "Sim", "portais": {"webmotors": 154.0, "olx": 189.0, "icarros": 263.0, "mobiauto": 170.0, "usadosbr": 177.0, "site": 193.0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Leste", "loja": "MDUPLA", "gestor": "Enzo", "estoqueEstimado": 12.0, "estoqueIntegrador": 9.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 46.0, "atratividade": 5.11, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Leste", "loja": "NC", "gestor": "Marcos", "estoqueEstimado": 28.0, "estoqueIntegrador": 35.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 175.0, "atratividade": 5.0, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Leste", "loja": "Z7", "gestor": "Giovana", "estoqueEstimado": 28.0, "estoqueIntegrador": 22.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 150.0, "atratividade": 6.82, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Leste", "loja": "MOVIDA", "gestor": "Anderson", "estoqueEstimado": 35.0, "estoqueIntegrador": 15.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 11.0, "atratividade": 0.73, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Leste", "loja": "DU MULTIMARCAS", "gestor": "Eduardo", "estoqueEstimado": 12.0, "estoqueIntegrador": 19.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 101.0, "atratividade": 5.32, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Leste", "loja": "K10 DIGITAL", "gestor": "Fábio", "estoqueEstimado": 10.0, "estoqueIntegrador": 11.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 59.0, "atratividade": 5.36, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Leste", "loja": "GT3", "gestor": "André", "estoqueEstimado": 12.0, "estoqueIntegrador": 10.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 15.0, "atratividade": 1.5, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Leste", "loja": "PHCAR", "gestor": "Rabech", "estoqueEstimado": 15.0, "estoqueIntegrador": 10.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 14.0, "atratividade": 1.4, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "AUTO PARREIRA", "gestor": "Renato", "estoqueEstimado": 20.0, "estoqueIntegrador": 28.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 49.0, "atratividade": 1.75, "compartilha": "Sim", "portais": {"webmotors": 152.0, "olx": 0.0, "icarros": 148.0, "mobiauto": 169.0, "usadosbr": 177.0, "site": 173.0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "CH MOTORS", "gestor": "Wladimir", "estoqueEstimado": 12.0, "estoqueIntegrador": 10.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 41.0, "atratividade": 4.1, "compartilha": "Sim", "portais": {"webmotors": 17.0, "olx": 0.0, "icarros": 5.0, "mobiauto": 11.0, "usadosbr": 7.0, "site": 2.0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "ELITE MOTORS", "gestor": "Rebeca", "estoqueEstimado": 35.0, "estoqueIntegrador": 29.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 47.0, "atratividade": 1.62, "compartilha": "Sim", "portais": {"webmotors": 135.0, "olx": 0.0, "icarros": 143.0, "mobiauto": 158.0, "usadosbr": 170.0, "site": 171.0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "MARRACHO", "gestor": "Débora", "estoqueEstimado": 12.0, "estoqueIntegrador": 0.0, "whatsapp": "Não", "atualizacao": "", "respondeLead": "", "leadsRecebidos": 0, "atratividade": 0, "compartilha": "Não", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "MDUPLA", "gestor": "Enzo", "estoqueEstimado": 12.0, "estoqueIntegrador": 11.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 32.0, "atratividade": 2.91, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "MN", "gestor": "David", "estoqueEstimado": 28.0, "estoqueIntegrador": 0.0, "whatsapp": "Não", "atualizacao": "", "respondeLead": "", "leadsRecebidos": 0, "atratividade": 0, "compartilha": "Não", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "NC", "gestor": "Marcos", "estoqueEstimado": 28.0, "estoqueIntegrador": 34.0, "whatsapp": "Sim", "atualizacao": "7  até 14 dias", "respondeLead": "Com CRM", "leadsRecebidos": 85.0, "atratividade": 2.5, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "Z7", "gestor": "Giovana", "estoqueEstimado": 28.0, "estoqueIntegrador": 25.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 113.0, "atratividade": 4.52, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "MOVIDA", "gestor": "Anderson", "estoqueEstimado": 35.0, "estoqueIntegrador": 15.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 8.0, "atratividade": 0.53, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "DU MULTIMARCAS", "gestor": "Eduardo", "estoqueEstimado": 12.0, "estoqueIntegrador": 22.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 75.0, "atratividade": 3.41, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "K10 DIGITAL", "gestor": "Fábio", "estoqueEstimado": 10.0, "estoqueIntegrador": 9.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 38.0, "atratividade": 4.22, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "GT3", "gestor": "André", "estoqueEstimado": 12.0, "estoqueIntegrador": 0.0, "whatsapp": "Não", "atualizacao": "", "respondeLead": "", "leadsRecebidos": 0, "atratividade": 0, "compartilha": "Não", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Leste", "loja": "PHCAR", "gestor": "David", "estoqueEstimado": 15.0, "estoqueIntegrador": 0.0, "whatsapp": "Não", "atualizacao": "", "respondeLead": "", "leadsRecebidos": 0, "atratividade": 0, "compartilha": "Não", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Leste", "loja": "AUTO PARREIRA", "gestor": "Renato", "estoqueEstimado": 20.0, "estoqueIntegrador": 34.0, "whatsapp": "Sim", "atualizacao": "7  até 14 dias", "respondeLead": "Com CRM", "leadsRecebidos": 30.0, "atratividade": 0.88, "compartilha": "Sim", "portais": {"webmotors": 147.0, "olx": 210.0, "icarros": 158.0, "mobiauto": 177.0, "usadosbr": 184.0, "site": 176.0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Leste", "loja": "CH MOTORS", "gestor": "Wladimir", "estoqueEstimado": 12.0, "estoqueIntegrador": 8.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 22.0, "atratividade": 2.75, "compartilha": "Sim", "portais": {"webmotors": 12.0, "olx": 40.0, "icarros": 7.0, "mobiauto": 11.0, "usadosbr": 17.0, "site": 0.0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Leste", "loja": "ELITE MOTORS", "gestor": "Rebeca", "estoqueEstimado": 35.0, "estoqueIntegrador": 25.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 25.0, "atratividade": 1.0, "compartilha": "Sim", "portais": {"webmotors": 135.0, "olx": 170.0, "icarros": 151.0, "mobiauto": 166.0, "usadosbr": 167.0, "site": 176.0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Leste", "loja": "MARRACHO", "gestor": "Débora", "estoqueEstimado": 12.0, "estoqueIntegrador": 9.0, "whatsapp": "Não", "atualizacao": "Acima de 20 dias", "respondeLead": "Com CRM", "leadsRecebidos": 8.0, "atratividade": 0.89, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Leste", "loja": "MDUPLA", "gestor": "Enzo", "estoqueEstimado": 12.0, "estoqueIntegrador": 10.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 21.0, "atratividade": 2.1, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Leste", "loja": "MN", "gestor": "David", "estoqueEstimado": 28.0, "estoqueIntegrador": 22.0, "whatsapp": "Não", "atualizacao": "Acima de 20 dias", "respondeLead": "Com CRM", "leadsRecebidos": 21.0, "atratividade": 0.95, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Leste", "loja": "NC", "gestor": "Marcos", "estoqueEstimado": 28.0, "estoqueIntegrador": 39.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 57.0, "atratividade": 1.46, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Leste", "loja": "Z7", "gestor": "Giovana", "estoqueEstimado": 28.0, "estoqueIntegrador": 28.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 75.0, "atratividade": 2.68, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Leste", "loja": "MOVIDA", "gestor": "Anderson", "estoqueEstimado": 35.0, "estoqueIntegrador": 12.0, "whatsapp": "Sim", "atualizacao": "Acima de 20 dias", "respondeLead": "Com CRM", "leadsRecebidos": 3.0, "atratividade": 0.25, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Leste", "loja": "DU MULTIMARCAS", "gestor": "Eduardo", "estoqueEstimado": 12.0, "estoqueIntegrador": 18.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 34.0, "atratividade": 1.89, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Leste", "loja": "K10 DIGITAL", "gestor": "Fábio", "estoqueEstimado": 10.0, "estoqueIntegrador": 11.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 34.0, "atratividade": 3.09, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sto Andre", "loja": "ALPHA", "gestor": "Adriana", "estoqueEstimado": 23.0, "estoqueIntegrador": 32.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 130.0, "atratividade": 4.06, "compartilha": "Sim", "portais": {"webmotors": 212.0, "olx": 287.0, "icarros": 263.0, "mobiauto": 311.0, "usadosbr": 312.0, "site": 291.0, "napista": 284.0}}, {"periodo": "De 01 a 21/06", "shopping": "Sto Andre", "loja": "BEM +", "gestor": "Jefferson", "estoqueEstimado": 20.0, "estoqueIntegrador": 19.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 162.0, "atratividade": 8.53, "compartilha": "Sim", "portais": {"webmotors": 7.0, "olx": 0.0, "icarros": -26.0, "mobiauto": 27.0, "usadosbr": 26.0, "site": 0.0, "napista": 9.0}}, {"periodo": "De 01 a 21/06", "shopping": "Sto Andre", "loja": "KAVAK", "gestor": "Nelson", "estoqueEstimado": 180.0, "estoqueIntegrador": 151.0, "whatsapp": "Não", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 570.0, "atratividade": 3.77, "compartilha": "Sim", "portais": {"webmotors": 205.0, "olx": 287.0, "icarros": 289.0, "mobiauto": 284.0, "usadosbr": 286.0, "site": 291.0, "napista": 275.0}}, {"periodo": "De 01 a 21/06", "shopping": "Sto Andre", "loja": "RATS", "gestor": "Radha", "estoqueEstimado": 35.0, "estoqueIntegrador": 75.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 235.0, "atratividade": 3.13, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sto Andre", "loja": "MULTCAR", "gestor": "Ricardo", "estoqueEstimado": 20.0, "estoqueIntegrador": 14.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 26.0, "atratividade": 1.86, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sto Andre", "loja": "ALPHA", "gestor": "Adriana", "estoqueEstimado": 23.0, "estoqueIntegrador": 31.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 93.0, "atratividade": 3.0, "compartilha": "Sim", "portais": {"webmotors": 205.0, "olx": 0.0, "icarros": 265.0, "mobiauto": 300.0, "usadosbr": 301.0, "site": 283.0, "napista": 268.0}}, {"periodo": "De 01 a 14/06", "shopping": "Sto Andre", "loja": "BEM +", "gestor": "Jefferson", "estoqueEstimado": 20.0, "estoqueIntegrador": 18.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 117.0, "atratividade": 6.5, "compartilha": "Sim", "portais": {"webmotors": 9.0, "olx": 0.0, "icarros": -17.0, "mobiauto": 26.0, "usadosbr": 20.0, "site": 1.0, "napista": -9.0}}, {"periodo": "De 01 a 14/06", "shopping": "Sto Andre", "loja": "KAVAK", "gestor": "Nelson", "estoqueEstimado": 180.0, "estoqueIntegrador": 152.0, "whatsapp": "Não", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 437.0, "atratividade": 2.88, "compartilha": "Sim", "portais": {"webmotors": 196.0, "olx": 0.0, "icarros": 282.0, "mobiauto": 274.0, "usadosbr": 281.0, "site": 282.0, "napista": 277.0}}, {"periodo": "De 01 a 14/06", "shopping": "Sto Andre", "loja": "RATS", "gestor": "Radha", "estoqueEstimado": 35.0, "estoqueIntegrador": 83.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 172.0, "atratividade": 2.07, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sto Andre", "loja": "MULTCAR", "gestor": "Ricardo", "estoqueEstimado": 0.0, "estoqueIntegrador": 0.0, "whatsapp": "Não", "atualizacao": "", "respondeLead": "", "leadsRecebidos": 0, "atratividade": 0, "compartilha": "Não", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Sto Andre", "loja": "ALPHA", "gestor": "Adriana", "estoqueEstimado": 23.0, "estoqueIntegrador": 34.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 71.0, "atratividade": 2.09, "compartilha": "Sim", "portais": {"webmotors": 216.0, "olx": 470.0, "icarros": 268.0, "mobiauto": 312.0, "usadosbr": 311.0, "site": 297.0, "napista": 286.0}}, {"periodo": "De 01 a 07/06", "shopping": "Sto Andre", "loja": "BEM +", "gestor": "Jefferson", "estoqueEstimado": 20.0, "estoqueIntegrador": 17.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 62.0, "atratividade": 3.65, "compartilha": "Sim", "portais": {"webmotors": 4.0, "olx": 183.0, "icarros": -26.0, "mobiauto": 26.0, "usadosbr": 19.0, "site": -1.0, "napista": 8.0}}, {"periodo": "De 01 a 07/06", "shopping": "Sto Andre", "loja": "KAVAK", "gestor": "Nelson", "estoqueEstimado": 180.0, "estoqueIntegrador": 166.0, "whatsapp": "Não", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 307.0, "atratividade": 1.85, "compartilha": "Sim", "portais": {"webmotors": 212.0, "olx": 287.0, "icarros": 294.0, "mobiauto": 286.0, "usadosbr": 292.0, "site": 298.0, "napista": 278.0}}, {"periodo": "De 01 a 07/06", "shopping": "Sto Andre", "loja": "RATS", "gestor": "Radha", "estoqueEstimado": 35.0, "estoqueIntegrador": 80.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 105.0, "atratividade": 1.31, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Nações", "loja": "AR7 MOTORS", "gestor": "Gustavo", "estoqueEstimado": 30.0, "estoqueIntegrador": 28.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 67.0, "atratividade": 2.39, "compartilha": "Sim", "portais": {"webmotors": 198.0, "olx": 263.0, "icarros": 250.0, "mobiauto": 265.0, "usadosbr": 271.0, "site": 263.0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Nações", "loja": "BOX 91", "gestor": "Micael", "estoqueEstimado": 20.0, "estoqueIntegrador": 18.0, "whatsapp": "Não", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 26.0, "atratividade": 1.44, "compartilha": "Sim", "portais": {"webmotors": 1.0, "olx": 1.0, "icarros": -12.0, "mobiauto": 1.0, "usadosbr": 7.0, "site": 0.0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Nações", "loja": "MAMEDIO", "gestor": "Jhonatan", "estoqueEstimado": 25.0, "estoqueIntegrador": 54.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 67.0, "atratividade": 1.24, "compartilha": "Sim", "portais": {"webmotors": 197.0, "olx": 262.0, "icarros": 262.0, "mobiauto": 264.0, "usadosbr": 264.0, "site": 263.0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Nações", "loja": "MAXTER", "gestor": "Maurício", "estoqueEstimado": 40.0, "estoqueIntegrador": 52.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 74.0, "atratividade": 1.42, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Nações", "loja": "MT PRIME", "gestor": "Gabriel", "estoqueEstimado": 15.0, "estoqueIntegrador": 24.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 44.0, "atratividade": 1.83, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Nações", "loja": "R2 PRIME", "gestor": "Gustavo", "estoqueEstimado": 25.0, "estoqueIntegrador": 35.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 40.0, "atratividade": 1.14, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Nações", "loja": "RAINHA", "gestor": "Elizabeth", "estoqueEstimado": 28.0, "estoqueIntegrador": 15.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 27.0, "atratividade": 1.8, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Nações", "loja": "RHC", "gestor": "Moraes", "estoqueEstimado": 60.0, "estoqueIntegrador": 1.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Sem CRM", "leadsRecebidos": 0.0, "atratividade": 0.0, "compartilha": "Não", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Nações", "loja": "VETTURE", "gestor": "Jonas", "estoqueEstimado": 15.0, "estoqueIntegrador": 20.0, "whatsapp": "Não", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 17.0, "atratividade": 0.85, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Nações", "loja": "VTR", "gestor": "Vitor", "estoqueEstimado": 26.0, "estoqueIntegrador": 27.0, "whatsapp": "Não", "atualizacao": "Acima de 20 dias", "respondeLead": "Com CRM", "leadsRecebidos": 34.0, "atratividade": 1.26, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Nações", "loja": "AR7 MOTORS", "gestor": "Gustavo", "estoqueEstimado": 30.0, "estoqueIntegrador": 35.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 47.0, "atratividade": 1.34, "compartilha": "Sim", "portais": {"webmotors": 205.0, "olx": 0.0, "icarros": 235.0, "mobiauto": 285.0, "usadosbr": 274.0, "site": 263.0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Nações", "loja": "BOX 91", "gestor": "Micael", "estoqueEstimado": 20.0, "estoqueIntegrador": 18.0, "whatsapp": "Não", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 15.0, "atratividade": 0.83, "compartilha": "Sim", "portais": {"webmotors": 0.0, "olx": 0.0, "icarros": -28.0, "mobiauto": 16.0, "usadosbr": 6.0, "site": -1.0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Nações", "loja": "MAMEDIO", "gestor": "Jhonatan", "estoqueEstimado": 25.0, "estoqueIntegrador": 51.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 27.0, "atratividade": 0.53, "compartilha": "Sim", "portais": {"webmotors": 205.0, "olx": 0.0, "icarros": 263.0, "mobiauto": 269.0, "usadosbr": 268.0, "site": 264.0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Nações", "loja": "MAXTER", "gestor": "Maurício", "estoqueEstimado": 40.0, "estoqueIntegrador": 46.0, "whatsapp": "Sim", "atualizacao": "7  até 14 dias", "respondeLead": "Com CRM", "leadsRecebidos": 58.0, "atratividade": 1.26, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Nações", "loja": "MT PRIME", "gestor": "Gabriel", "estoqueEstimado": 15.0, "estoqueIntegrador": 20.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 36.0, "atratividade": 1.8, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Nações", "loja": "R2 PRIME", "gestor": "Gustavo", "estoqueEstimado": 25.0, "estoqueIntegrador": 35.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 27.0, "atratividade": 0.77, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Nações", "loja": "RAINHA", "gestor": "Elizabeth", "estoqueEstimado": 28.0, "estoqueIntegrador": 21.0, "whatsapp": "Sim", "atualizacao": "Acima de 20 dias", "respondeLead": "Com CRM", "leadsRecebidos": 23.0, "atratividade": 1.1, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Nações", "loja": "RHC", "gestor": "Moraes", "estoqueEstimado": 60.0, "estoqueIntegrador": 1.0, "whatsapp": "Não", "atualizacao": "Acima de 20 dias", "respondeLead": "Sem CRM", "leadsRecebidos": 0.0, "atratividade": 0.0, "compartilha": "Não", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Nações", "loja": "V MARC", "gestor": "Nycolas", "estoqueEstimado": 20.0, "estoqueIntegrador": 0.0, "whatsapp": "Não", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 36.0, "atratividade": 0, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Nações", "loja": "VETTURE", "gestor": "Jonas", "estoqueEstimado": 15.0, "estoqueIntegrador": 20.0, "whatsapp": "Não", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 8.0, "atratividade": 0.4, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Nações", "loja": "VTR", "gestor": "Vitor", "estoqueEstimado": 26.0, "estoqueIntegrador": 27.0, "whatsapp": "Sim", "atualizacao": "7  até 14 dias", "respondeLead": "Com CRM", "leadsRecebidos": 26.0, "atratividade": 0.96, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Nações", "loja": "AR7 MOTORS", "gestor": "Gustavo", "estoqueEstimado": 30.0, "estoqueIntegrador": 32.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 23.0, "atratividade": 0.72, "compartilha": "Sim", "portais": {"webmotors": 208.0, "olx": 259.0, "icarros": 226.0, "mobiauto": 270.0, "usadosbr": 247.0, "site": 256.0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Nações", "loja": "BOX 91", "gestor": "Micael", "estoqueEstimado": 20.0, "estoqueIntegrador": 12.0, "whatsapp": "Não", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 6.0, "atratividade": 0.5, "compartilha": "Sim", "portais": {"webmotors": -1.0, "olx": 7.0, "icarros": -27.0, "mobiauto": 17.0, "usadosbr": 11.0, "site": -1.0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Nações", "loja": "MAMEDIO", "gestor": "Jhonatan", "estoqueEstimado": 25.0, "estoqueIntegrador": 38.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 12.0, "atratividade": 0.32, "compartilha": "Sim", "portais": {"webmotors": 209.0, "olx": 252.0, "icarros": 253.0, "mobiauto": 253.0, "usadosbr": 236.0, "site": 257.0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Nações", "loja": "MAXTER", "gestor": "Maurício", "estoqueEstimado": 40.0, "estoqueIntegrador": 46.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 33.0, "atratividade": 0.72, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Nações", "loja": "MT PRIME", "gestor": "Gabriel", "estoqueEstimado": 15.0, "estoqueIntegrador": 14.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 20.0, "atratividade": 1.43, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Nações", "loja": "R2 PRIME", "gestor": "Gustavo", "estoqueEstimado": 25.0, "estoqueIntegrador": 39.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 20.0, "atratividade": 0.51, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Nações", "loja": "RAINHA", "gestor": "Elizabeth", "estoqueEstimado": 28.0, "estoqueIntegrador": 21.0, "whatsapp": "Sim", "atualizacao": "7  até 14 dias", "respondeLead": "Com CRM", "leadsRecebidos": 13.0, "atratividade": 0.62, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Nações", "loja": "RHC", "gestor": "Moraes", "estoqueEstimado": 60.0, "estoqueIntegrador": 1.0, "whatsapp": "Não", "atualizacao": "Acima de 20 dias", "respondeLead": "Sem CRM", "leadsRecebidos": 0.0, "atratividade": 0.0, "compartilha": "Não", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Nações", "loja": "V MARC", "gestor": "Nycolas", "estoqueEstimado": 20.0, "estoqueIntegrador": 22.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 27.0, "atratividade": 1.23, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Nações", "loja": "VETTURE", "gestor": "Jonas", "estoqueEstimado": 15.0, "estoqueIntegrador": 21.0, "whatsapp": "Não", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 4.0, "atratividade": 0.19, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Nações", "loja": "VTR", "gestor": "Vitor", "estoqueEstimado": 26.0, "estoqueIntegrador": 27.0, "whatsapp": "Sim", "atualizacao": "7  até 14 dias", "respondeLead": "Com CRM", "leadsRecebidos": 21.0, "atratividade": 0.78, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sul", "loja": "ARS3", "gestor": "Ivone", "estoqueEstimado": 35.0, "estoqueIntegrador": 113.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 81.0, "atratividade": 0.72, "compartilha": "Sim", "portais": {"webmotors": 289.0, "olx": 350.0, "icarros": 250.0, "mobiauto": 317.0, "usadosbr": 340.0, "site": 403.0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sul", "loja": "AYRON", "gestor": "William", "estoqueEstimado": 28.0, "estoqueIntegrador": 35.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 19.0, "atratividade": 0.54, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sul", "loja": "CAZELATO", "gestor": "Flávio", "estoqueEstimado": 10.0, "estoqueIntegrador": 29.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 24.0, "atratividade": 0.83, "compartilha": "Sim", "portais": {"webmotors": 20.0, "olx": -2.0, "icarros": -66.0, "mobiauto": -5.0, "usadosbr": 14.0, "site": 0.0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sul", "loja": "DAVANTI", "gestor": "Thayla", "estoqueEstimado": 60.0, "estoqueIntegrador": 104.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 23.0, "atratividade": 0.22, "compartilha": "Sim", "portais": {"webmotors": 269.0, "olx": 352.0, "icarros": 316.0, "mobiauto": 322.0, "usadosbr": 326.0, "site": 403.0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sul", "loja": "GAEZ", "gestor": "Rosemberg", "estoqueEstimado": 70.0, "estoqueIntegrador": 54.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 46.0, "atratividade": 0.85, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sul", "loja": "GPR", "gestor": "Solange", "estoqueEstimado": 15.0, "estoqueIntegrador": 23.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 5.0, "atratividade": 0.22, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sul", "loja": "MACA", "gestor": "Jackeline", "estoqueEstimado": 65.0, "estoqueIntegrador": 55.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 21.0, "atratividade": 0.38, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sul", "loja": "MM5", "gestor": "Felipe", "estoqueEstimado": 26.0, "estoqueIntegrador": 22.0, "whatsapp": "Sim", "atualizacao": "7  até 14 dias", "respondeLead": "Com CRM", "leadsRecebidos": 6.0, "atratividade": 0.27, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sul", "loja": "PONTO CERTO", "gestor": "Leonardo", "estoqueEstimado": 35.0, "estoqueIntegrador": 1.0, "whatsapp": "Não", "atualizacao": "Acima de 20 dias", "respondeLead": "Sem CRM", "leadsRecebidos": 0.0, "atratividade": 0.0, "compartilha": "Não", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sul", "loja": "SP MOTORS", "gestor": "Mamede", "estoqueEstimado": 15.0, "estoqueIntegrador": 13.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 30.0, "atratividade": 2.31, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 21/06", "shopping": "Sul", "loja": "UNITED", "gestor": "Felipe", "estoqueEstimado": 30.0, "estoqueIntegrador": 4.0, "whatsapp": "Não", "atualizacao": "Acima de 20 dias", "respondeLead": "Com CRM", "leadsRecebidos": 4.0, "atratividade": 1.0, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sul", "loja": "ARS3", "gestor": "Ivone", "estoqueEstimado": 35.0, "estoqueIntegrador": 114.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 62.0, "atratividade": 0.54, "compartilha": "Sim", "portais": {"webmotors": 239.0, "olx": 0.0, "icarros": 237.0, "mobiauto": 294.0, "usadosbr": 328.0, "site": 344.0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sul", "loja": "AYRON", "gestor": "William", "estoqueEstimado": 28.0, "estoqueIntegrador": 35.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 14.0, "atratividade": 0.4, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sul", "loja": "CAZELATO", "gestor": "Flávio", "estoqueEstimado": 10.0, "estoqueIntegrador": 24.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 20.0, "atratividade": 0.83, "compartilha": "Sim", "portais": {"webmotors": 16.0, "olx": 0.0, "icarros": -52.0, "mobiauto": -5.0, "usadosbr": 13.0, "site": 0.0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sul", "loja": "DAVANTI", "gestor": "Thayla", "estoqueEstimado": 60.0, "estoqueIntegrador": 43.0, "whatsapp": "Não", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 19.0, "atratividade": 0.44, "compartilha": "Sim", "portais": {"webmotors": 223.0, "olx": 0.0, "icarros": 289.0, "mobiauto": 299.0, "usadosbr": 315.0, "site": 344.0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sul", "loja": "GAEZ", "gestor": "Rosemberg", "estoqueEstimado": 70.0, "estoqueIntegrador": 58.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 38.0, "atratividade": 0.66, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sul", "loja": "GPR", "gestor": "Solange", "estoqueEstimado": 15.0, "estoqueIntegrador": 23.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 3.0, "atratividade": 0.13, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sul", "loja": "MACA", "gestor": "Jackeline", "estoqueEstimado": 65.0, "estoqueIntegrador": 40.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 17.0, "atratividade": 0.42, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sul", "loja": "MM5", "gestor": "Felipe", "estoqueEstimado": 26.0, "estoqueIntegrador": 12.0, "whatsapp": "Sim", "atualizacao": "7  até 14 dias", "respondeLead": "Com CRM", "leadsRecebidos": 6.0, "atratividade": 0.5, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sul", "loja": "PONTO CERTO", "gestor": "Leonardo", "estoqueEstimado": 35.0, "estoqueIntegrador": 1.0, "whatsapp": "Sim", "atualizacao": "Acima de 20 dias", "respondeLead": "Sem CRM", "leadsRecebidos": 0.0, "atratividade": 0.0, "compartilha": "Não", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sul", "loja": "SP MOTORS", "gestor": "Mamede", "estoqueEstimado": 15.0, "estoqueIntegrador": 11.0, "whatsapp": "Não", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 18.0, "atratividade": 1.64, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 14/06", "shopping": "Sul", "loja": "UNITED", "gestor": "Felipe", "estoqueEstimado": 30.0, "estoqueIntegrador": 4.0, "whatsapp": "Não", "atualizacao": "Acima de 20 dias", "respondeLead": "Com CRM", "leadsRecebidos": 4.0, "atratividade": 1.0, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Sul", "loja": "ARS3", "gestor": "Ivone", "estoqueEstimado": 35.0, "estoqueIntegrador": 104.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 31.0, "atratividade": 0.3, "compartilha": "Sim", "portais": {"webmotors": 213.0, "olx": 397.0, "icarros": 235.0, "mobiauto": 267.0, "usadosbr": 303.0, "site": 315.0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Sul", "loja": "AYRON", "gestor": "William", "estoqueEstimado": 28.0, "estoqueIntegrador": 40.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 7.0, "atratividade": 0.17, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Sul", "loja": "CAZELATO", "gestor": "Flávio", "estoqueEstimado": 10.0, "estoqueIntegrador": 23.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 5.0, "atratividade": 0.22, "compartilha": "Sim", "portais": {"webmotors": 7.0, "olx": 85.0, "icarros": -43.0, "mobiauto": -7.0, "usadosbr": 12.0, "site": -1.0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Sul", "loja": "DAVANTI", "gestor": "Thayla", "estoqueEstimado": 60.0, "estoqueIntegrador": 44.0, "whatsapp": "Sim", "atualizacao": "7  até 14 dias", "respondeLead": "Com CRM", "leadsRecebidos": 12.0, "atratividade": 0.27, "compartilha": "Sim", "portais": {"webmotors": 206.0, "olx": 312.0, "icarros": 278.0, "mobiauto": 274.0, "usadosbr": 291.0, "site": 316.0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Sul", "loja": "GAEZ", "gestor": "Rosemberg", "estoqueEstimado": 70.0, "estoqueIntegrador": 45.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 19.0, "atratividade": 0.42, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Sul", "loja": "GPR", "gestor": "Solange", "estoqueEstimado": 15.0, "estoqueIntegrador": 26.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 2.0, "atratividade": 0.08, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Sul", "loja": "MACA", "gestor": "Jackeline", "estoqueEstimado": 65.0, "estoqueIntegrador": 39.0, "whatsapp": "Sim", "atualizacao": "7  até 14 dias", "respondeLead": "Com CRM", "leadsRecebidos": 7.0, "atratividade": 0.18, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Sul", "loja": "MM5", "gestor": "Felipe", "estoqueEstimado": 26.0, "estoqueIntegrador": 12.0, "whatsapp": "Sim", "atualizacao": "0 até 7 dias", "respondeLead": "Com CRM", "leadsRecebidos": 6.0, "atratividade": 0.5, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Sul", "loja": "PONTO CERTO", "gestor": "Leonardo", "estoqueEstimado": 35.0, "estoqueIntegrador": 1.0, "whatsapp": "Não", "atualizacao": "Acima de 20 dias", "respondeLead": "Sem CRM", "leadsRecebidos": 0.0, "atratividade": 0.0, "compartilha": "Não", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Sul", "loja": "SP MOTORS", "gestor": "Mamede", "estoqueEstimado": 15.0, "estoqueIntegrador": 15.0, "whatsapp": "Não", "atualizacao": "7  até 14 dias", "respondeLead": "Com CRM", "leadsRecebidos": 9.0, "atratividade": 0.6, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}, {"periodo": "De 01 a 07/06", "shopping": "Sul", "loja": "UNITED", "gestor": "Felipe", "estoqueEstimado": 30.0, "estoqueIntegrador": 4.0, "whatsapp": "Sim", "atualizacao": "Acima de 20 dias", "respondeLead": "Com CRM", "leadsRecebidos": 2.0, "atratividade": 0.5, "compartilha": "Sim", "portais": {"webmotors": 0, "olx": 0, "icarros": 0, "mobiauto": 0, "usadosbr": 0, "site": 0, "napista": null}}]
+;
+
+let ALL_DATA = [];
+
+const CLASSES = [
+  {min:2.99, key:'otima', label:'ÓTIMA'},
+  {min:2.00, key:'boa', label:'BOA'},
+  {min:1.00, key:'regular', label:'REGULAR'},
+  {min:-Infinity, key:'ruim', label:'RUIM'}
+];
+function classificar(indice){
+  for (const c of CLASSES) if (indice >= c.min) return c;
+  return CLASSES[CLASSES.length-1];
+}
+
+/* ---------------- LOGIN ---------------- */
+function tryLogin(){
+  const val = document.getElementById('gate-pass').value;
+  if (val === SENHA_PAINEL){
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } else {
+    document.getElementById('gate-error').style.display = 'block';
+  }
+}
+document.getElementById('gate-pass').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+
+/* ---------------- INIT ---------------- */
+async function initApp(){
+  await loadData();
+  populateFilters();
+  bindTabs();
+  bindFilters();
+  render();
+}
+
+async function loadData(){
+  if (firebaseOk){
+    try{
+      const snap = await db.collection(COLLECTION).orderBy('periodo').get();
+      if (!snap.empty){
+        ALL_DATA = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        setSync(true, `conectado · ${ALL_DATA.length} registros`);
+        listenLive();
+        return;
+      }
+      // Firestore vazio: usa seed e oferece popular a base
+      ALL_DATA = SEED_DATA;
+      setSync(true, 'conectado · base vazia (usando dados históricos locais)');
+      listenLive();
+      return;
+    } catch(e){
+      console.warn('Erro ao ler Firestore:', e);
+    }
+  }
+  ALL_DATA = SEED_DATA;
+  setSync(false, 'offline · exibindo dados históricos locais');
+}
+
+function listenLive(){
+  if (!firebaseOk) return;
+  db.collection(COLLECTION).orderBy('periodo').onSnapshot(snap => {
+    if (snap.empty) return;
+    ALL_DATA = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    populateFilters();
+    render();
+  }, err => console.warn('listener error', err));
+}
+
+function setSync(ok, text){
+  document.getElementById('sync-dot').className = 'dot' + (ok ? '' : ' off');
+  document.getElementById('sync-text').textContent = text;
+}
+
+/* ---------------- TABS ---------------- */
+function bindTabs(){
+  document.querySelectorAll('nav.tabs button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    });
+  });
+}
+
+/* ---------------- FILTERS ---------------- */
+function populateFilters(){
+  const shoppings = [...new Set(ALL_DATA.map(d=>d.shopping))].sort();
+  const periodos = [...new Set(ALL_DATA.map(d=>d.periodo))];
+  ['1','2','3'].forEach(n=>{
+    const selS = document.getElementById('f-shopping-'+n);
+    const selP = document.getElementById('f-periodo-'+n);
+    const curS = selS.value, curP = selP.value;
+    selS.innerHTML = '<option value="">Todos</option>' + shoppings.map(s=>`<option value="${s}">${s}</option>`).join('');
+    selP.innerHTML = '<option value="">Todos</option>' + periodos.map(p=>`<option value="${p}">${p}</option>`).join('');
+    selS.value = curS; selP.value = curP;
+  });
+}
+function bindFilters(){
+  ['1','2','3'].forEach(n=>{
+    document.getElementById('f-shopping-'+n).addEventListener('change', e=>{
+      ['1','2','3'].forEach(m=>document.getElementById('f-shopping-'+m).value = e.target.value);
+      render();
+    });
+    document.getElementById('f-periodo-'+n).addEventListener('change', e=>{
+      ['1','2','3'].forEach(m=>document.getElementById('f-periodo-'+m).value = e.target.value);
+      render();
+    });
+  });
+}
+function getFiltered(){
+  const s = document.getElementById('f-shopping-1').value;
+  const p = document.getElementById('f-periodo-1').value;
+  return ALL_DATA.filter(d => (!s || d.shopping===s) && (!p || d.periodo===p));
+}
+
+/* ---------------- CHARTS (instances) ---------------- */
+let charts = {};
+function destroyChart(key){ if(charts[key]){ charts[key].destroy(); delete charts[key]; } }
+
+const CHART_COLORS = ['#ffb020','#34d399','#60a5fa','#f87171','#c084fc','#fbbf24'];
+
+/* ---------------- RENDER ---------------- */
+function render(){
+  const data = getFiltered();
+  renderKPIs(data);
+  renderChartShoppings(data);
+  renderChartClassificacao(data);
+  renderChartEvolucao(data);
+  renderChartPortais(data);
+  renderRanking(data);
+  renderTabela(data);
+}
+
+function renderKPIs(data){
+  const totalLeads = data.reduce((a,d)=>a+(d.leadsRecebidos||0),0);
+  const mediaIndice = data.length ? (data.reduce((a,d)=>a+(d.atratividade||0),0)/data.length) : 0;
+  const pctWhats = pct(data, d=>d.whatsapp==='Sim');
+  const pctAtual = pct(data, d=>d.atualizacao==='0 até 7 dias');
+  const pctCrm = pct(data, d=>d.respondeLead==='Com CRM');
+  const pctCont = pct(data, d=>d.compartilha==='Sim');
+  document.getElementById('kpi-leads').textContent = totalLeads.toLocaleString('pt-BR');
+  document.getElementById('kpi-indice').innerHTML = mediaIndice.toFixed(2) + '<small> / loja</small>';
+  document.getElementById('kpi-whats').innerHTML = pctWhats + '<small>%</small>';
+  document.getElementById('kpi-atual').innerHTML = pctAtual + '<small>%</small>';
+  document.getElementById('kpi-crm').innerHTML = pctCrm + '<small>%</small>';
+  document.getElementById('kpi-cont').innerHTML = pctCont + '<small>%</small>';
+}
+function pct(data, fn){
+  if (!data.length) return 0;
+  return Math.round(100 * data.filter(fn).length / data.length);
+}
+
+function renderChartShoppings(data){
+  const byShopping = groupAvg(data, 'shopping', 'atratividade');
+  destroyChart('shoppings');
+  const ctx = document.getElementById('chart-shoppings');
+  charts.shoppings = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(byShopping),
+      datasets: [{ data: Object.values(byShopping), backgroundColor: CHART_COLORS, borderRadius: 4 }]
+    },
+    options: baseOpts({legend:false})
+  });
+}
+
+function renderChartClassificacao(data){
+  const counts = {otima:0, boa:0, regular:0, ruim:0};
+  data.forEach(d=>{ counts[classificar(d.atratividade||0).key]++; });
+  destroyChart('classificacao');
+  const ctx = document.getElementById('chart-classificacao');
+  charts.classificacao = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Ótima','Boa','Regular','Ruim'],
+      datasets: [{ data: [counts.otima,counts.boa,counts.regular,counts.ruim],
+        backgroundColor: ['#34d399','#ffb020','#fbbf24','#f87171'], borderWidth:0 }]
+    },
+    options: baseOpts({legend:true})
+  });
+}
+
+function renderChartEvolucao(data){
+  const periodos = [...new Set(ALL_DATA.map(d=>d.periodo))];
+  const shoppings = [...new Set(ALL_DATA.map(d=>d.shopping))].sort();
+  const datasets = shoppings.map((s,i)=>({
+    label: s,
+    data: periodos.map(p=>{
+      const rows = ALL_DATA.filter(d=>d.shopping===s && d.periodo===p);
+      return rows.length ? avg(rows.map(r=>r.atratividade||0)) : null;
+    }),
+    borderColor: CHART_COLORS[i%CHART_COLORS.length],
+    backgroundColor: 'transparent',
+    tension:.35,
+  }));
+  destroyChart('evolucao');
+  const ctx = document.getElementById('chart-evolucao');
+  charts.evolucao = new Chart(ctx, {
+    type:'line',
+    data:{ labels: periodos, datasets },
+    options: baseOpts({legend:true})
+  });
+}
+
+function renderChartPortais(data){
+  const portais = ['webmotors','olx','icarros','mobiauto','usadosbr','site','napista'];
+  const labels = ['WebMotors','OLX','iCarros','Mobiauto','UsadosBR','Site','Na Pista'];
+  const sums = portais.map(p => data.reduce((a,d)=>a + Math.max(0,(d.portais && d.portais[p]) || 0), 0));
+  destroyChart('portais');
+  const ctx = document.getElementById('chart-portais');
+  charts.portais = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data: sums, backgroundColor: CHART_COLORS[0], borderRadius:4 }] },
+    options: baseOpts({legend:false, indexAxis:'y'})
+  });
+}
+
+function renderRanking(data){
+  const sorted = [...data].sort((a,b)=>(b.atratividade||0)-(a.atratividade||0));
+  const max = sorted.length ? sorted[0].atratividade||1 : 1;
+  const el = document.getElementById('rank-list');
+  el.innerHTML = sorted.map((d,i)=>{
+    const c = classificar(d.atratividade||0);
+    const w = Math.max(4, Math.round(100*(d.atratividade||0)/max));
+    return `<div class="rank-row">
+      <div class="rank-n">${i+1}</div>
+      <div class="rank-name"><div class="l">${d.loja||''}</div><div class="s">${d.shopping||''} · ${d.gestor||''}</div></div>
+      <div class="rank-bar-wrap"><div class="rank-bar" style="width:${w}%;background:${colorFor(c.key)}"></div></div>
+      <div class="rank-val">${(d.atratividade||0).toFixed(2)}</div>
+      <span class="badge ${c.key}">${c.label}</span>
+    </div>`;
+  }).join('') || '<div class="card-sub">Nenhum registro para os filtros selecionados.</div>';
+}
+function colorFor(key){
+  return {otima:'#34d399',boa:'#ffb020',regular:'#fbbf24',ruim:'#f87171'}[key];
+}
+
+function renderTabela(data){
+  const tb = document.getElementById('tbody-detalhe');
+  tb.innerHTML = data.map(d=>{
+    const c = classificar(d.atratividade||0);
+    return `<tr>
+      <td>${d.periodo||''}</td><td>${d.shopping||''}</td><td>${d.loja||''}</td><td>${d.gestor||''}</td>
+      <td>${d.estoqueEstimado ?? ''}</td><td>${d.estoqueIntegrador ?? ''}</td>
+      <td><span class="badge ${d.whatsapp==='Sim'?'sim':'nao'}">${d.whatsapp||''}</span></td>
+      <td>${d.atualizacao||''}</td>
+      <td><span class="badge ${d.respondeLead==='Com CRM'?'sim':'nao'}">${d.respondeLead||''}</span></td>
+      <td>${d.leadsRecebidos ?? ''}</td><td>${(d.atratividade||0).toFixed(2)}</td>
+      <td><span class="badge ${c.key}">${c.label}</span></td>
+      <td><span class="badge ${d.compartilha==='Sim'?'sim':'nao'}">${d.compartilha||''}</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="13" class="card-sub">Nenhum registro para os filtros selecionados.</td></tr>';
+}
+
+/* ---------------- HELPERS ---------------- */
+function avg(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+function groupAvg(data, key, valKey){
+  const groups = {};
+  data.forEach(d=>{
+    const k = d[key] || '—';
+    (groups[k] = groups[k] || []).push(d[valKey] || 0);
+  });
+  const out = {};
+  Object.keys(groups).sort().forEach(k => out[k] = +avg(groups[k]).toFixed(2));
+  return out;
+}
+function baseOpts({legend=false, indexAxis='x'}={}){
+  return {
+    indexAxis,
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{ display: legend, labels:{ color:'#8f9aab', font:{family:'Inter', size:11} } },
+      tooltip:{ backgroundColor:'#1f2630', borderColor:'#333d4b', borderWidth:1, titleColor:'#eef1f5', bodyColor:'#eef1f5' }
+    },
+    scales: indexAxis==='y' ? {
+      x:{ ticks:{color:'#8f9aab', font:{family:'IBM Plex Mono', size:10.5}}, grid:{color:'#262e3a'} },
+      y:{ ticks:{color:'#8f9aab', font:{family:'Inter', size:11.5}}, grid:{display:false} }
+    } : {
+      x:{ ticks:{color:'#8f9aab', font:{family:'Inter', size:11.5}}, grid:{display:false} },
+      y:{ ticks:{color:'#8f9aab', font:{family:'IBM Plex Mono', size:10.5}}, grid:{color:'#262e3a'} }
+    }
+  };
+}
+
+/* ---------------- FORM ---------------- */
+async function salvarVistoria(){
+  const estIntegrador = num('in-integ');
+  const leads = num('in-leads');
+  const atratividade = estIntegrador > 0 ? +(leads/estIntegrador).toFixed(2) : 0;
+
+  const registro = {
+    periodo: val('in-periodo') || 'Sem período',
+    shopping: val('in-shopping'),
+    loja: val('in-loja'),
+    gestor: val('in-gestor'),
+    estoqueEstimado: num('in-est'),
+    estoqueIntegrador: estIntegrador,
+    whatsapp: val('in-whats'),
+    atualizacao: val('in-atual'),
+    respondeLead: val('in-crm'),
+    leadsRecebidos: leads,
+    atratividade: atratividade,
+    compartilha: val('in-cont'),
+    portais: {
+      webmotors: num('in-webmotors'), olx: num('in-olx'), icarros: num('in-icarros'),
+      mobiauto: num('in-mobiauto'), usadosbr: num('in-usadosbr'), site: num('in-site'),
+      napista: num('in-napista')
+    },
+    criadoEm: new Date().toISOString()
+  };
+
+  if (!registro.loja){
+    document.getElementById('form-msg').style.color = 'var(--ruim)';
+    document.getElementById('form-msg').textContent = 'Informe ao menos o nome da loja.';
+    return;
+  }
+
+  if (firebaseOk){
+    try{
+      await db.collection(COLLECTION).add(registro);
+      document.getElementById('form-msg').style.color = 'var(--good)';
+      document.getElementById('form-msg').textContent = 'Vistoria salva na base online ✓';
+      limparForm();
+      return;
+    } catch(e){
+      console.warn(e);
+    }
+  }
+  // fallback local se Firebase não estiver configurado
+  registro.id = 'local-' + Date.now();
+  ALL_DATA.push(registro);
+  populateFilters();
+  render();
+  document.getElementById('form-msg').style.color = 'var(--amber)';
+  document.getElementById('form-msg').textContent = 'Firebase não configurado — vistoria salva apenas nesta sessão.';
+  limparForm();
+}
+function limparForm(){
+  ['in-periodo','in-loja','in-gestor'].forEach(id=>document.getElementById(id).value='');
+  ['in-est','in-integ','in-leads','in-webmotors','in-olx','in-icarros','in-mobiauto','in-usadosbr','in-site','in-napista']
+    .forEach(id=>document.getElementById(id).value='0');
+}
+function val(id){ return document.getElementById(id).value.trim(); }
+function num(id){ return parseFloat(document.getElementById(id).value) || 0; }
+</script>
+</body>
+</html>
