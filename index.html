@@ -20,13 +20,13 @@
   --text:#f5f5f0;
   --text-dim:#9a9a92;
   --text-dim-2:#5c5c56;
-  --amber:#ffd100;
-  --amber-dim:#4d4420;
-  --good:#3ddc97;
-  --good-dim:#1f4d3d;
-  --regular:#ffe066;
-  --ruim:#ff6b4a;
-  --ruim-dim:#4d2a1f;
+  --amber:#ffdb00;
+  --amber-dim:#4d4200;
+  --good:#b2cb1c;
+  --good-dim:#3a4310;
+  --regular:#1b4f91;
+  --ruim:#e0010f;
+  --ruim-dim:#4d0a0a;
   --font-display:'Space Grotesk',sans-serif;
   --font-body:'Inter',sans-serif;
   --font-mono:'JetBrains Mono',monospace;
@@ -162,12 +162,12 @@ main{padding:28px 32px 60px;max-width:1400px;margin:0 auto;}
 .rank-val{font-family:var(--font-mono);font-size:13px;width:44px;text-align:right;}
 
 .badge{display:inline-block;padding:3px 9px;border-radius:100px;font-size:10.5px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.04em;}
-.badge.otima{background:rgba(61,220,151,.15);color:var(--good);}
-.badge.boa{background:rgba(255,209,0,.15);color:var(--amber);}
-.badge.regular{background:rgba(255,224,102,.15);color:var(--regular);}
-.badge.ruim{background:rgba(255,107,74,.15);color:var(--ruim);}
-.badge.sim{background:rgba(61,220,151,.15);color:var(--good);}
-.badge.nao{background:rgba(255,107,74,.15);color:var(--ruim);}
+.badge.otima{background:rgba(178,203,28,.18);color:var(--good);}
+.badge.boa{background:rgba(255,219,0,.18);color:var(--amber);}
+.badge.regular{background:rgba(27,79,145,.25);color:var(--regular);}
+.badge.ruim{background:rgba(224,1,15,.18);color:var(--ruim);}
+.badge.sim{background:rgba(178,203,28,.18);color:var(--good);}
+.badge.nao{background:rgba(224,1,15,.18);color:var(--ruim);}
 
 /* table */
 .table-wrap{overflow-x:auto;}
@@ -591,7 +591,7 @@ if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
 let charts = {};
 function destroyChart(key){ if(charts[key]){ charts[key].destroy(); delete charts[key]; } }
 
-const CHART_COLORS = ['#ffd100','#3ddc97','#60a5fa','#ff6b4a','#c084fc','#ffe066'];
+const CHART_COLORS = ['#ffdb00','#b2cb1c','#f2e85c','#e0010f','#6a8f10','#1b4f91'];
 
 /* ---------------- RENDER ---------------- */
 function render(){
@@ -658,7 +658,7 @@ function renderChartClassificacao(data){
     data: {
       labels: ['Ótima','Boa','Regular','Ruim'],
       datasets: [{ data: [counts.otima,counts.boa,counts.regular,counts.ruim],
-        backgroundColor: ['#3ddc97','#ffd100','#ffe066','#ff6b4a'], borderWidth:0 }]
+        backgroundColor: ['#b2cb1c','#ffdb00','#1b4f91','#e0010f'], borderWidth:0 }]
     },
     options: baseOpts({legend:true, datalabels:{
       color:'#0a0a0a', font:{family:'JetBrains Mono', size:12, weight:'700'},
@@ -677,7 +677,7 @@ function renderChartEstoqueComparativo(data){
     data: {
       labels: ['Estoque Estimado','Estoque Integrador'],
       datasets: [{ data: [totalEstimado, totalIntegrador],
-        backgroundColor: ['#ffd100','#3ddc97'], borderRadius: 4 }]
+        backgroundColor: ['#ffdb00','#b2cb1c'], borderRadius: 4 }]
     },
     options: baseOpts({legend:false, datalabels:{
       color:'#f5f5f0', anchor:'end', align:'top', offset:4,
@@ -739,8 +739,8 @@ function renderChartPortais(){
   charts.portais = new Chart(ctx, {
     type:'bar',
     data:{ labels, datasets:[
-      { label:'Marketplace/Portal', data: marketplace, backgroundColor: '#ffd100', borderRadius:4 },
-      { label:'Site/Integrador', data: siteIntegrador, backgroundColor: '#3ddc97', borderRadius:4 }
+      { label:'Marketplace/Portal', data: marketplace, backgroundColor: '#ffdb00', borderRadius:4 },
+      { label:'Site/Integrador', data: siteIntegrador, backgroundColor: '#b2cb1c', borderRadius:4 }
     ]},
     options: baseOpts({legend:true, indexAxis:'y', datalabels:{
       color:'#f5f5f0', anchor:'end', align:'end', offset:4,
@@ -757,16 +757,16 @@ function renderChartPortais(){
   }</tr>`;
   const linhaDiferenca = () => {
     const celulas = diferenca.map(v=>{
-      const cor = v < 0 ? '#ff6b4a' : (v > 0 ? '#3ddc97' : 'var(--text-dim)');
+      const cor = v < 0 ? '#e0010f' : (v > 0 ? '#b2cb1c' : 'var(--text-dim)');
       const seta = v < 0 ? '▼' : (v > 0 ? '▲' : '—');
       return `<td style="color:${cor}">${seta} ${v.toLocaleString('pt-BR')}</td>`;
     }).join('');
     return `<tr><td style="font-family:var(--font-mono);text-transform:uppercase;font-size:11px;color:var(--text-dim);">Diferença</td>${celulas}</tr>`;
   };
   body.innerHTML =
-    linhaSimples('Marketplace/Portal', marketplace, '#ffd100') +
+    linhaSimples('Marketplace/Portal', marketplace, '#ffdb00') +
     linhaDiferenca() +
-    linhaSimples('Site/Integrador', siteIntegrador, '#3ddc97');
+    linhaSimples('Site/Integrador', siteIntegrador, '#b2cb1c');
 }
 
 function renderRanking(data){
@@ -786,7 +786,7 @@ function renderRanking(data){
   }).join('') || '<div class="card-sub">Nenhum registro para os filtros selecionados.</div>';
 }
 function colorFor(key){
-  return {otima:'#3ddc97',boa:'#ffd100',regular:'#ffe066',ruim:'#ff6b4a'}[key];
+  return {otima:'#b2cb1c',boa:'#ffdb00',regular:'#1b4f91',ruim:'#e0010f'}[key];
 }
 
 function renderTabela(data){
