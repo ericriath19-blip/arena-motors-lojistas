@@ -591,7 +591,18 @@ if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
 let charts = {};
 function destroyChart(key){ if(charts[key]){ charts[key].destroy(); delete charts[key]; } }
 
-const CHART_COLORS = ['#ffdb00','#b2cb1c','#f2e85c','#e0010f','#6a8f10','#1b4f91'];
+const CHART_COLORS = ['#ffdb00','#1b4f91','#e0010f','#b2cb1c','#f2e85c','#6a8f10'];
+function contrastColor(hex){
+  if (!hex || hex[0] !== '#') return '#f5f5f0';
+  const r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), b = parseInt(hex.substr(5,2),16);
+  const yiq = (r*299 + g*587 + b*114) / 1000;
+  return yiq >= 150 ? '#0a0a0a' : '#f5f5f0';
+}
+function barLabelColor(ctx){
+  const bg = ctx.dataset.backgroundColor;
+  const cor = Array.isArray(bg) ? bg[ctx.dataIndex] : bg;
+  return contrastColor(cor);
+}
 
 /* ---------------- RENDER ---------------- */
 function render(){
@@ -641,8 +652,8 @@ function renderChartShoppings(data){
       datasets: [{ data: Object.values(byShopping), backgroundColor: CHART_COLORS, borderRadius: 4 }]
     },
     options: baseOpts({legend:false, datalabels:{
-      color:'#f5f5f0', anchor:'end', align:'top', offset:4,
-      font:{family:'JetBrains Mono', size:11, weight:'600'},
+      color: barLabelColor, anchor:'end', align:'start', offset:2,
+      font:{family:'JetBrains Mono', size:12, weight:'bold'},
       formatter: v => v.toFixed(2)
     }})
   });
@@ -677,11 +688,11 @@ function renderChartEstoqueComparativo(data){
     data: {
       labels: ['Estoque Estimado','Estoque Integrador'],
       datasets: [{ data: [totalEstimado, totalIntegrador],
-        backgroundColor: ['#ffdb00','#b2cb1c'], borderRadius: 4 }]
+        backgroundColor: ['#ffdb00','#1b4f91'], borderRadius: 4 }]
     },
     options: baseOpts({legend:false, datalabels:{
-      color:'#f5f5f0', anchor:'end', align:'top', offset:4,
-      font:{family:'JetBrains Mono', size:12, weight:'700'},
+      color: barLabelColor, anchor:'end', align:'start', offset:2,
+      font:{family:'JetBrains Mono', size:13, weight:'bold'},
       formatter: v => v.toLocaleString('pt-BR')
     }})
   });
@@ -740,11 +751,11 @@ function renderChartPortais(){
     type:'bar',
     data:{ labels, datasets:[
       { label:'Marketplace/Portal', data: marketplace, backgroundColor: '#ffdb00', borderRadius:4 },
-      { label:'Site/Integrador', data: siteIntegrador, backgroundColor: '#b2cb1c', borderRadius:4 }
+      { label:'Site/Integrador', data: siteIntegrador, backgroundColor: '#1b4f91', borderRadius:4 }
     ]},
     options: baseOpts({legend:true, indexAxis:'y', datalabels:{
-      color:'#f5f5f0', anchor:'end', align:'end', offset:4,
-      font:{family:'JetBrains Mono', size:10.5, weight:'600'},
+      color: barLabelColor, anchor:'end', align:'start', offset:2,
+      font:{family:'JetBrains Mono', size:11, weight:'bold'},
       formatter: v => v.toLocaleString('pt-BR')
     }})
   });
