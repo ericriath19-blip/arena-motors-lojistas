@@ -688,7 +688,7 @@ function renderChartEstoqueComparativo(data){
 }
 
 function renderChartEvolucao(data){
-  const periodos = [...new Set(ALL_DATA.map(d=>d.periodo))];
+  const periodos = [...new Set(ALL_DATA.map(d=>d.periodo))].sort((a,b)=>periodoOrdinal(a)-periodoOrdinal(b));
   const shoppings = [...new Set(ALL_DATA.map(d=>d.shopping))].sort();
   const datasets = shoppings.map((s,i)=>({
     label: s,
