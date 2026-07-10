@@ -333,7 +333,7 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
                 <th>Período</th><th>Shopping</th><th>Loja</th><th>Gestor</th>
                 <th>Estoque Est.</th><th>Estoque Integr.</th><th>WhatsApp</th>
                 <th>Atualização</th><th>CRM</th><th>Leads</th><th>Índice</th>
-                <th>Classificação</th><th>Conteúdo</th>
+                <th>Classificação</th><th>Conteúdo</th><th>Ações</th>
               </tr>
             </thead>
             <tbody id="tbody-detalhe"></tbody>
@@ -345,8 +345,8 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
     <!-- ===================== LANÇAR ===================== -->
     <section class="view" id="view-lancar">
       <div class="card">
-        <h3>Novo lançamento de dados</h3>
-        <div class="card-sub">Preencha os dados do corte semanal — os campos são salvos direto na base online</div>
+        <h3 id="form-title">Novo lançamento de dados</h3>
+        <div class="card-sub" id="form-subtitle">Preencha os dados do corte semanal — os campos são salvos direto na base online</div>
 
         <div class="section-title">Identificação</div>
         <div class="form-grid">
@@ -394,8 +394,9 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
         </div>
 
         <div class="form-actions">
-          <button class="btn primary" onclick="salvarVistoria()">Salvar vistoria</button>
+          <button class="btn primary" id="btn-salvar" onclick="salvarVistoria()">Salvar vistoria</button>
           <button class="btn ghost" onclick="limparForm()">Limpar</button>
+          <button class="btn ghost" id="btn-cancelar-edicao" style="display:none;color:var(--ruim);border-color:var(--ruim-dim);" onclick="cancelarEdicao()">Cancelar edição</button>
           <span id="form-msg"></span>
         </div>
       </div>
@@ -501,8 +502,8 @@ async function loadData(){
 function listenLive(){
   if (!firebaseOk) return;
   db.collection(COLLECTION).orderBy('periodo').onSnapshot(snap => {
-    if (snap.empty) return;
     ALL_DATA = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    if (!ALL_DATA.length) ALL_DATA = SEED_DATA;
     populateFilters();
     render();
   }, err => console.warn('listener error', err));
@@ -804,6 +805,10 @@ function renderTabela(data){
   const tb = document.getElementById('tbody-detalhe');
   tb.innerHTML = data.map(d=>{
     const c = classificar(d.atratividade||0);
+    const acoes = d.id
+      ? `<button class="btn ghost" style="padding:5px 10px;font-size:10.5px;" onclick="iniciarEdicao('${d.id}')">Editar</button>
+         <button class="btn ghost" style="padding:5px 10px;font-size:10.5px;color:var(--ruim);border-color:var(--ruim-dim);" onclick="confirmarRemocao('${d.id}')">Remover</button>`
+      : `<span class="card-sub" style="font-size:10.5px;" title="Dado histórico da planilha — sincronize com o Firestore para editar">histórico</span>`;
     return `<tr>
       <td>${d.periodo||''}</td><td>${d.shopping||''}</td><td>${d.loja||''}</td><td>${d.gestor||''}</td>
       <td>${d.estoqueEstimado ?? ''}</td><td>${d.estoqueIntegrador ?? ''}</td>
@@ -813,8 +818,9 @@ function renderTabela(data){
       <td>${d.leadsRecebidos ?? ''}</td><td>${(d.atratividade||0).toFixed(2)}</td>
       <td><span class="badge ${c.key}">${c.label}</span></td>
       <td><span class="badge ${d.compartilha==='Sim'?'sim':'nao'}">${d.compartilha||''}</span></td>
+      <td style="white-space:nowrap;display:flex;gap:6px;">${acoes}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="13" class="card-sub">Nenhum registro para os filtros selecionados.</td></tr>';
+  }).join('') || '<tr><td colspan="14" class="card-sub">Nenhum registro para os filtros selecionados.</td></tr>';
 }
 
 /* ---------------- HELPERS ---------------- */
@@ -860,6 +866,8 @@ function baseOpts({legend=false, indexAxis='x', datalabels=null}={}){
 }
 
 /* ---------------- FORM ---------------- */
+let editingId = null;
+
 async function salvarVistoria(){
   const estIntegrador = num('in-integ');
   const leads = num('in-leads');
@@ -883,8 +891,9 @@ async function salvarVistoria(){
       mobiauto: num('in-mobiauto'), usadosbr: num('in-usadosbr'), site: num('in-site'),
       napista: num('in-napista')
     },
-    criadoEm: new Date().toISOString()
+    atualizadoEm: new Date().toISOString()
   };
+  if (!editingId) registro.criadoEm = new Date().toISOString();
 
   if (!registro.loja){
     document.getElementById('form-msg').style.color = 'var(--ruim)';
@@ -892,6 +901,34 @@ async function salvarVistoria(){
     return;
   }
 
+  // ---- MODO EDIÇÃO ----
+  if (editingId){
+    if (firebaseOk && !String(editingId).startsWith('local-')){
+      try{
+        await db.collection(COLLECTION).doc(editingId).update(registro);
+        document.getElementById('form-msg').style.color = 'var(--good)';
+        document.getElementById('form-msg').textContent = 'Vistoria atualizada ✓';
+        cancelarEdicao();
+        return;
+      } catch(e){
+        console.warn(e);
+        document.getElementById('form-msg').style.color = 'var(--ruim)';
+        document.getElementById('form-msg').textContent = 'Erro ao atualizar. Tente novamente.';
+        return;
+      }
+    } else {
+      const idx = ALL_DATA.findIndex(d=>d.id===editingId);
+      if (idx > -1) ALL_DATA[idx] = {...registro, id: editingId};
+      populateFilters();
+      render();
+      document.getElementById('form-msg').style.color = 'var(--good)';
+      document.getElementById('form-msg').textContent = 'Vistoria atualizada (sessão local) ✓';
+      cancelarEdicao();
+      return;
+    }
+  }
+
+  // ---- MODO NOVO LANÇAMENTO ----
   if (firebaseOk){
     try{
       await db.collection(COLLECTION).add(registro);
@@ -912,6 +949,77 @@ async function salvarVistoria(){
   document.getElementById('form-msg').textContent = 'Firebase não configurado — vistoria salva apenas nesta sessão.';
   limparForm();
 }
+
+function iniciarEdicao(id){
+  const registro = ALL_DATA.find(d=>d.id===id);
+  if (!registro){
+    alert('Não foi possível localizar esse registro para edição.');
+    return;
+  }
+  editingId = id;
+  document.getElementById('in-periodo').value = registro.periodo || '';
+  document.getElementById('in-shopping').value = registro.shopping || 'Leste';
+  document.getElementById('in-loja').value = registro.loja || '';
+  document.getElementById('in-gestor').value = registro.gestor || '';
+  document.getElementById('in-est').value = registro.estoqueEstimado ?? 0;
+  document.getElementById('in-integ').value = registro.estoqueIntegrador ?? 0;
+  document.getElementById('in-leads').value = registro.leadsRecebidos ?? 0;
+  document.getElementById('in-whats').value = registro.whatsapp || 'Sim';
+  document.getElementById('in-atual').value = registro.atualizacao || '0 até 7 dias';
+  document.getElementById('in-crm').value = registro.respondeLead || 'Com CRM';
+  document.getElementById('in-cont').value = registro.compartilha || 'Sim';
+  const p = registro.portais || {};
+  document.getElementById('in-webmotors').value = p.webmotors ?? 0;
+  document.getElementById('in-olx').value = p.olx ?? 0;
+  document.getElementById('in-icarros').value = p.icarros ?? 0;
+  document.getElementById('in-mobiauto').value = p.mobiauto ?? 0;
+  document.getElementById('in-usadosbr').value = p.usadosbr ?? 0;
+  document.getElementById('in-site').value = p.site ?? 0;
+  document.getElementById('in-napista').value = p.napista ?? 0;
+
+  document.getElementById('form-title').textContent = `Editando vistoria — ${registro.loja} (${registro.periodo})`;
+  document.getElementById('form-subtitle').textContent = 'Altere os campos necessários e clique em Salvar edição.';
+  document.getElementById('btn-salvar').textContent = 'Salvar edição';
+  document.getElementById('btn-cancelar-edicao').style.display = 'inline-block';
+  document.getElementById('form-msg').textContent = '';
+
+  document.querySelector('nav.tabs button[data-view="lancar"]').click();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function cancelarEdicao(){
+  editingId = null;
+  limparForm();
+  document.getElementById('form-title').textContent = 'Novo lançamento de dados';
+  document.getElementById('form-subtitle').textContent = 'Preencha os dados do corte semanal — os campos são salvos direto na base online';
+  document.getElementById('btn-salvar').textContent = 'Salvar vistoria';
+  document.getElementById('btn-cancelar-edicao').style.display = 'none';
+}
+
+function confirmarRemocao(id){
+  const registro = ALL_DATA.find(d=>d.id===id);
+  const nome = registro ? `${registro.loja} (${registro.periodo})` : 'este registro';
+  if (confirm(`Remover a vistoria de ${nome}? Essa ação não pode ser desfeita.`)){
+    removerVistoria(id);
+  }
+}
+
+async function removerVistoria(id){
+  if (firebaseOk && !String(id).startsWith('local-')){
+    try{
+      await db.collection(COLLECTION).doc(id).delete();
+      return; // onSnapshot atualiza a tela sozinho
+    } catch(e){
+      console.warn(e);
+      alert('Erro ao remover o registro. Tente novamente.');
+      return;
+    }
+  }
+  ALL_DATA = ALL_DATA.filter(d=>d.id!==id);
+  populateFilters();
+  render();
+}
+
 function limparForm(){
   ['in-periodo','in-loja','in-gestor'].forEach(id=>document.getElementById(id).value='');
   ['in-est','in-integ','in-leads','in-webmotors','in-olx','in-icarros','in-mobiauto','in-usadosbr','in-site','in-napista']
