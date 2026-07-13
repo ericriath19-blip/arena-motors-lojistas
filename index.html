@@ -300,6 +300,13 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
           </table>
         </div>
       </div>
+
+      <div class="card">
+        <h3>Estoque por Portal — Lançamentos por Loja</h3>
+        <div class="card-sub">Vem dos lançamentos feitos pelo formulário "Lançar Dados" (por loja). Respeita o filtro de Loja acima. Dados históricos da planilha antiga não entram aqui, só shopping.</div>
+        <div class="chart-wrap"><canvas id="chart-portais-loja"></canvas></div>
+        <div class="card-sub" id="portais-loja-vazio" style="display:none;margin-top:12px;">Nenhum lançamento com estoque por portal encontrado para esse filtro ainda.</div>
+      </div>
     </section>
 
     <!-- ===================== RANKING ===================== -->
@@ -779,6 +786,7 @@ function render(){
   renderChartEstoqueComparativo(data);
   renderChartEvolucao(data);
   renderChartPortais();
+  renderChartPortaisLoja(data);
   renderRanking(data);
   renderTabela(data);
 }
@@ -944,6 +952,35 @@ function renderChartPortais(){
     linhaSimples('Marketplace/Portal', marketplace, '#ffdb00') +
     linhaDiferenca() +
     linhaSimples('Site/Integrador', siteIntegrador, '#b2cb1c');
+}
+
+function renderChartPortaisLoja(data){
+  const registrosComPortal = data.filter(d => d.portais && Object.values(d.portais).some(v => v !== undefined && v !== null));
+  const vazioMsg = document.getElementById('portais-loja-vazio');
+  const canvasEl = document.getElementById('chart-portais-loja');
+  const wrap = canvasEl.closest('.chart-wrap');
+  destroyChart('portaisLoja');
+
+  if (!registrosComPortal.length){
+    vazioMsg.style.display = 'block';
+    wrap.style.display = 'none';
+    return;
+  }
+  vazioMsg.style.display = 'none';
+  wrap.style.display = '';
+
+  const somas = LISTAS.portais.map(p => registrosComPortal.reduce((a,d)=>a+((d.portais && d.portais[p.id]) || 0), 0));
+  const labels = LISTAS.portais.map(p=>p.nome);
+
+  charts.portaisLoja = new Chart(canvasEl, {
+    type:'bar',
+    data:{ labels, datasets:[{ data: somas, backgroundColor: '#ffdb00', borderRadius:4 }] },
+    options: baseOpts({legend:false, indexAxis:'y', datalabels:{
+      color: barLabelColor, anchor:'end', align:'start', offset:2,
+      font:{family:'JetBrains Mono', size:11, weight:'bold'},
+      formatter: v => v.toLocaleString('pt-BR')
+    }})
+  });
 }
 
 function renderRanking(data){
