@@ -694,7 +694,7 @@ async function removerItemLista(tipo, valor){
 
 function populateFilters(){
   const shoppings = [...new Set(ALL_DATA.map(d=>d.shopping))].sort();
-  const periodos = [...new Set(ALL_DATA.map(d=>d.periodo))];
+  const periodos = [...new Set(ALL_DATA.map(d=>d.periodo))].sort((a,b)=>periodoOrdinal(b)-periodoOrdinal(a));
   ['1','2','3'].forEach(n=>{
     const selS = document.getElementById('f-shopping-'+n);
     const selP = document.getElementById('f-periodo-'+n);
@@ -734,8 +734,8 @@ function bindFilters(){
   });
 }
 function periodoOrdinal(periodo){
-  const m = /a\s*(\d+)\//.exec(periodo || '');
-  return m ? parseInt(m[1], 10) : 0;
+  const m = /a\s*(\d+)\/(\d+)/.exec(periodo || '');
+  return m ? (parseInt(m[2],10) * 100 + parseInt(m[1],10)) : 0;
 }
 function getFiltered(){
   const s = document.getElementById('f-shopping-1').value;
