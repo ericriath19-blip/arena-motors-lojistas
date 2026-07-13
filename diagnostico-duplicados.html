@@ -80,6 +80,13 @@ td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
     <div class="status" id="status-remove"></div>
     <div id="log"></div>
   </div>
+
+  <div class="card" id="card-auditoria" style="display:none;">
+    <div class="eyebrow">Auditoria</div>
+    <h2 id="titulo-auditoria"></h2>
+    <p>Lojas onde o campo <b>Portal</b> está preenchido mas o <b>Integrador</b> está zerado ou bem menor (menos de 60% do Portal) — provável esquecimento no lançamento, não duplicata.</p>
+    <div id="lista-auditoria"></div>
+  </div>
 </div>
 
 </div>
@@ -162,6 +169,7 @@ async function escanear(){
       });
 
     renderResultado(todos.length);
+    renderAuditoriaIntegrador(todos);
 
     if (GRUPOS_DUPLICADOS.length){
       status.className = 'status warn';
@@ -220,6 +228,57 @@ function renderResultado(totalLido){
       </table>
     </div>
   `).join('');
+}
+
+function renderAuditoriaIntegrador(todos){
+  const PORTAL_LABELS = {webmotors:'WebMotors', olx:'OLX', icarros:'iCarros', mobiauto:'Mobiauto', usadosbr:'UsadosBR', site:'Site próprio', napista:'Na Pista'};
+  const achados = [];
+
+  todos.forEach(r => {
+    if (!r.portais) return;
+    Object.entries(r.portais).forEach(([portalId, v]) => {
+      let portal, integrador;
+      if (typeof v === 'object' && v !== null){
+        portal = v.portal || 0; integrador = v.integrador || 0;
+      } else {
+        portal = v || 0; integrador = 0; // formato antigo, integrador nunca foi capturado
+      }
+      if (portal > 0 && integrador < portal * 0.6){
+        achados.push({
+          id: r.id, shopping: r.shopping, loja: r.loja, periodo: r.periodo,
+          portalNome: PORTAL_LABELS[portalId] || portalId, portal, integrador
+        });
+      }
+    });
+  });
+
+  const card = document.getElementById('card-auditoria');
+  const titulo = document.getElementById('titulo-auditoria');
+  const lista = document.getElementById('lista-auditoria');
+  card.style.display = 'block';
+  titulo.textContent = `${achados.length} lançamentos de portal com Integrador ausente ou muito baixo`;
+
+  if (!achados.length){
+    lista.innerHTML = '<p>Nenhum caso encontrado — todos os portais preenchidos têm Integrador em linha com o Portal.</p>';
+    return;
+  }
+
+  // agrupar por loja+periodo para facilitar a correção (uma edição resolve vários portais de uma vez)
+  const porRegistro = {};
+  achados.forEach(a => {
+    const k = a.id;
+    (porRegistro[k] = porRegistro[k] || {shopping:a.shopping, loja:a.loja, periodo:a.periodo, id:a.id, itens:[]}).itens.push(a);
+  });
+
+  lista.innerHTML = '<table><thead><tr><th>Shopping</th><th>Loja</th><th>Período</th><th>Portais pendentes (Portal → Integrador)</th></tr></thead><tbody>' +
+    Object.values(porRegistro).map(r => `
+      <tr>
+        <td>${r.shopping||''}</td>
+        <td>${r.loja||''}</td>
+        <td style="font-family:var(--font-mono);">${r.periodo||''}</td>
+        <td>${r.itens.map(i=>`${i.portalNome}: <span style="color:var(--amber)">${i.portal}</span> → <span style="color:${i.integrador===0?'var(--ruim)':'var(--regular)'}">${i.integrador}</span>`).join(' · ')}</td>
+      </tr>
+    `).join('') + '</tbody></table>';
 }
 
 async function removerDuplicados(){
