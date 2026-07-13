@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnóstico de Duplicados — RAI Performance 2.0</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --asphalt:#0a0a0a; --surface:#141414; --surface-2:#1c1c1c; --line:#2c2c2c;
+  --text:#f5f5f0; --text-dim:#9a9a92; --amber:#ffdb00; --good:#b2cb1c; --ruim:#e0010f; --regular:#1b4f91;
+  --font-display:'Space Grotesk',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--asphalt);color:var(--text);font-family:var(--font-body);min-height:100vh;padding:32px;}
+.wrap{max-width:1000px;margin:0 auto;}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:32px;margin-bottom:20px;}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--amber);text-transform:uppercase;margin-bottom:10px;}
+h1{font-family:var(--font-display);font-size:24px;text-transform:uppercase;margin-bottom:14px;}
+h2{font-family:var(--font-display);font-size:16px;text-transform:uppercase;margin-bottom:10px;}
+p{color:var(--text-dim);font-size:13.5px;line-height:1.6;margin-bottom:12px;}
+#gate input{width:100%;padding:13px 14px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:var(--font-mono);font-size:14px;margin:14px 0;}
+button{padding:12px 20px;background:var(--amber);color:#161006;border:none;border-radius:100px;font-family:var(--font-display);font-weight:600;font-size:13.5px;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;margin-right:10px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--text-dim);}
+button.danger{background:var(--ruim);color:#fff;}
+#gate-error{color:var(--ruim);font-size:12.5px;margin-top:6px;display:none;font-family:var(--font-mono);}
+.status{font-family:var(--font-mono);font-size:12.5px;margin-top:14px;}
+.status.ok{color:var(--good);}
+.status.err{color:var(--ruim);}
+.status.warn{color:var(--amber);}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:16px;}
+th{text-align:left;padding:8px 10px;font-family:var(--font-mono);font-size:10.5px;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--line);}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+.badge{display:inline-block;padding:2px 8px;border-radius:100px;font-size:10px;font-family:var(--font-mono);text-transform:uppercase;}
+.badge.manter{background:rgba(178,203,28,.18);color:var(--good);}
+.badge.remover{background:rgba(224,1,15,.18);color:var(--ruim);}
+.grupo{margin-bottom:26px;padding-bottom:20px;border-bottom:1px solid var(--line);}
+.grupo:last-child{border-bottom:none;}
+.grupo-titulo{font-family:var(--font-mono);font-size:13px;color:var(--amber);margin-bottom:8px;}
+#log{margin-top:16px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:14px;font-family:var(--font-mono);font-size:11.5px;max-height:220px;overflow-y:auto;white-space:pre-wrap;display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="card" id="gate">
+  <div class="eyebrow">Ferramenta de diagnóstico</div>
+  <h1>Duplicados na base — RAI Performance 2.0</h1>
+  <p>Escaneia a coleção <code>conferencias</code> do Firestore, agrupa por Shopping + Loja + Período e mostra quando há mais de um registro pra mesma combinação — o que causa somas infladas nos gráficos.</p>
+  <input type="password" id="gate-pass" placeholder="Senha de acesso">
+  <button onclick="tryLogin()">Entrar</button>
+  <div id="gate-error">Senha incorreta.</div>
+</div>
+
+<div id="app" style="display:none;">
+  <div class="card">
+    <div class="eyebrow">Passo 1</div>
+    <h2>Escanear a base</h2>
+    <p>Lê todos os registros e agrupa por Shopping + Loja + Período. Não altera nada nesse passo.</p>
+    <button id="btn-escanear" onclick="escanear()">Escanear base</button>
+    <div class="status" id="status-scan"></div>
+  </div>
+
+  <div class="card" id="card-resultado" style="display:none;">
+    <div class="eyebrow">Resultado</div>
+    <h2 id="titulo-resultado"></h2>
+    <p>Para cada grupo com duplicados, o registro mantido é o <b>mais recente</b> (por data de atualização/criação). Os demais ficam marcados para remoção. Confira antes de remover.</p>
+    <div id="grupos"></div>
+  </div>
+
+  <div class="card" id="card-acao" style="display:none;">
+    <div class="eyebrow">Passo 2</div>
+    <h2>Remover duplicados</h2>
+    <p>Isso apaga permanentemente os registros marcados como "Remover" acima, mantendo só o mais recente de cada Shopping + Loja + Período. Não afeta registros que não são duplicados.</p>
+    <button class="danger" id="btn-remover" onclick="removerDuplicados()">Remover duplicados agora</button>
+    <button class="ghost" onclick="window.location.reload()">Cancelar</button>
+    <div class="status" id="status-remove"></div>
+    <div id="log"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyADj6CWOUh66_G7qMoFmLxzorSRmwzhG3Q",
+  authDomain: "arena-motors-dashboard.firebaseapp.com",
+  projectId: "arena-motors-dashboard",
+  storageBucket: "arena-motors-dashboard.firebasestorage.app",
+  messagingSenderId: "668179364218",
+  appId: "1:668179364218:web:7fc08915222efb30c13ec3"
+};
+const COLLECTION = "conferencias";
+const SENHA_PAINEL = "arenamotors2026";
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let GRUPOS_DUPLICADOS = [];
+
+function tryLogin(){
+  if (document.getElementById('gate-pass').value === SENHA_PAINEL){
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+  } else {
+    document.getElementById('gate-error').style.display = 'block';
+  }
+}
+document.getElementById('gate-pass').addEventListener('keydown', e => { if (e.key==='Enter') tryLogin(); });
+
+function log(msg){
+  const el = document.getElementById('log');
+  el.style.display = 'block';
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+function chave(r){
+  return [r.shopping||'', r.loja||'', r.periodo||''].join(' | ');
+}
+
+function dataOrdenacao(r){
+  return r.atualizadoEm || r.criadoEm || '';
+}
+
+function formatarPortais(r){
+  if (!r.portais || !Object.keys(r.portais).length) return '<span style="color:var(--text-dim)">sem dado de portal</span>';
+  return Object.entries(r.portais).map(([id, v])=>{
+    if (typeof v === 'object' && v !== null){
+      return `${id}: <span style="color:var(--amber)">${v.portal ?? 0}</span>/<span style="color:var(--regular)">${v.integrador ?? 0}</span>`;
+    }
+    return `${id}: <span style="color:var(--amber)">${v}</span> (formato antigo)`;
+  }).join(' · ');
+}
+
+async function escanear(){
+  const btn = document.getElementById('btn-escanear');
+  const status = document.getElementById('status-scan');
+  btn.disabled = true;
+  status.className = 'status';
+  status.textContent = 'Lendo registros...';
+
+  try{
+    const snap = await db.collection(COLLECTION).get();
+    const todos = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    status.textContent = `${todos.length} registros lidos. Agrupando...`;
+
+    const grupos = {};
+    todos.forEach(r => {
+      const k = chave(r);
+      (grupos[k] = grupos[k] || []).push(r);
+    });
+
+    GRUPOS_DUPLICADOS = Object.entries(grupos)
+      .filter(([k, regs]) => regs.length > 1)
+      .map(([k, regs]) => {
+        const ordenados = [...regs].sort((a,b) => dataOrdenacao(b).localeCompare(dataOrdenacao(a)));
+        return { chave: k, manter: ordenados[0], remover: ordenados.slice(1) };
+      });
+
+    renderResultado(todos.length);
+
+    if (GRUPOS_DUPLICADOS.length){
+      status.className = 'status warn';
+      status.textContent = `Encontrados ${GRUPOS_DUPLICADOS.length} grupos com duplicados.`;
+      document.getElementById('card-acao').style.display = 'block';
+    } else {
+      status.className = 'status ok';
+      status.textContent = 'Nenhum duplicado encontrado — a base está limpa.';
+    }
+  } catch(e){
+    console.error(e);
+    status.className = 'status err';
+    status.textContent = 'Erro ao escanear: ' + e.message;
+  }
+  btn.disabled = false;
+}
+
+function renderResultado(totalLido){
+  const card = document.getElementById('card-resultado');
+  const titulo = document.getElementById('titulo-resultado');
+  const grupos = document.getElementById('grupos');
+  card.style.display = 'block';
+
+  const totalRemover = GRUPOS_DUPLICADOS.reduce((a,g)=>a+g.remover.length, 0);
+  titulo.textContent = `${totalLido} registros no total · ${GRUPOS_DUPLICADOS.length} grupos duplicados · ${totalRemover} registros a remover`;
+
+  if (!GRUPOS_DUPLICADOS.length){
+    grupos.innerHTML = '<p>Nenhum grupo com mais de um registro para a mesma Loja + Shopping + Período.</p>';
+    return;
+  }
+
+  grupos.innerHTML = GRUPOS_DUPLICADOS.map(g => `
+    <div class="grupo">
+      <div class="grupo-titulo">${g.chave} — ${1 + g.remover.length} registros</div>
+      <table>
+        <thead><tr><th>Status</th><th>ID</th><th>Atualizado/Criado em</th><th>Leads</th><th>Índice</th><th>Portais (Portal/Integrador)</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="badge manter">Manter</span></td>
+            <td style="font-family:var(--font-mono);">${g.manter.id}</td>
+            <td style="font-family:var(--font-mono);">${dataOrdenacao(g.manter) || '—'}</td>
+            <td>${g.manter.leadsRecebidos ?? '—'}</td>
+            <td>${(g.manter.atratividade ?? 0).toFixed ? g.manter.atratividade.toFixed(2) : g.manter.atratividade}</td>
+            <td>${formatarPortais(g.manter)}</td>
+          </tr>
+          ${g.remover.map(r => `
+          <tr>
+            <td><span class="badge remover">Remover</span></td>
+            <td style="font-family:var(--font-mono);">${r.id}</td>
+            <td style="font-family:var(--font-mono);">${dataOrdenacao(r) || '—'}</td>
+            <td>${r.leadsRecebidos ?? '—'}</td>
+            <td>${(r.atratividade ?? 0).toFixed ? r.atratividade.toFixed(2) : r.atratividade}</td>
+            <td>${formatarPortais(r)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `).join('');
+}
+
+async function removerDuplicados(){
+  if (!GRUPOS_DUPLICADOS.length) return;
+  const totalRemover = GRUPOS_DUPLICADOS.reduce((a,g)=>a+g.remover.length, 0);
+  if (!confirm(`Remover ${totalRemover} registros duplicados? Essa ação não pode ser desfeita.`)) return;
+
+  const btn = document.getElementById('btn-remover');
+  const status = document.getElementById('status-remove');
+  btn.disabled = true;
+  status.className = 'status';
+  status.textContent = 'Removendo...';
+  log(`Iniciando remoção de ${totalRemover} registros...`);
+
+  try{
+    let removidos = 0;
+    const idsRemover = GRUPOS_DUPLICADOS.flatMap(g => g.remover.map(r=>r.id));
+    for (let i = 0; i < idsRemover.length; i += 400){
+      const lote = idsRemover.slice(i, i+400);
+      const batch = db.batch();
+      lote.forEach(id => batch.delete(db.collection(COLLECTION).doc(id)));
+      await batch.commit();
+      removidos += lote.length;
+      log(`Removido lote — total ${removidos}/${idsRemover.length}`);
+      status.textContent = `Removendo... ${removidos}/${idsRemover.length}`;
+    }
+    status.className = 'status ok';
+    status.textContent = `Concluído! ${removidos} registros duplicados removidos. Volte para o painel e recarregue.`;
+    log('Remoção concluída com sucesso.');
+    GRUPOS_DUPLICADOS = [];
+  } catch(e){
+    console.error(e);
+    status.className = 'status err';
+    status.textContent = 'Erro ao remover: ' + e.message;
+    log('ERRO: ' + e.message);
+  }
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
