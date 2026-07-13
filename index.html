@@ -291,14 +291,15 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
 
       <div class="card">
         <h3>Estoque por Portal — Marketplace x Site/Integrador</h3>
-        <div class="card-sub">Comparação por shopping, igual à planilha. Se "Todos" os shoppings estiver selecionado, soma os valores de todos.</div>
+        <div class="card-sub">Comparação por shopping, igual à planilha (só existe para os cortes importados da planilha original). Se "Todos" os shoppings estiver selecionado, soma os valores de todos.</div>
         <div class="chart-wrap"><canvas id="chart-portais"></canvas></div>
-        <div class="table-wrap" style="margin-top:18px;">
+        <div class="table-wrap" id="portais-shopping-tabela-wrap" style="margin-top:18px;">
           <table id="tabela-portal-diferenca">
             <thead><tr id="tabela-portal-head"></tr></thead>
             <tbody id="tabela-portal-body"></tbody>
           </table>
         </div>
+        <div class="card-sub" id="portais-shopping-vazio" style="display:none;margin-top:12px;">Não há tabela de Marketplace x Site/Integrador da planilha para esse período — esse dado só existe nos cortes importados originalmente (07/06, 14/06, 21/06, 30/06). Tente selecionar um desses períodos, ou use o card "Lançamentos por Loja" abaixo para os dados mais recentes.</div>
       </div>
 
       <div class="card">
@@ -918,6 +919,22 @@ function renderChartPortais(){
     entradas = entradas.filter(e => e.periodo===maisRecente);
   }
 
+  const canvasElShopping = document.getElementById('chart-portais');
+  const wrapShopping = canvasElShopping.closest('.chart-wrap');
+  const tabelaWrapShopping = document.getElementById('portais-shopping-tabela-wrap');
+  const vazioShopping = document.getElementById('portais-shopping-vazio');
+  destroyChart('portais');
+
+  if (!entradas.length){
+    wrapShopping.style.display = 'none';
+    tabelaWrapShopping.style.display = 'none';
+    vazioShopping.style.display = 'block';
+    return;
+  }
+  wrapShopping.style.display = '';
+  tabelaWrapShopping.style.display = '';
+  vazioShopping.style.display = 'none';
+
   const portais = ['webmotors','olx','icarros','mobiauto','usadosbr','site','napista'];
   const labels = ['WebMotors','OLX','iCarros','Mobiauto','UsadosBR','Site','Na Pista'];
   const somar = (campo, portal) => entradas.reduce((a,e)=>a+((e[campo] && e[campo][portal]) || 0), 0);
@@ -927,8 +944,7 @@ function renderChartPortais(){
   const diferenca = portais.map(p2 => somar('diferenca', p2));
 
   destroyChart('portais');
-  const ctx = document.getElementById('chart-portais');
-  charts.portais = new Chart(ctx, {
+  charts.portais = new Chart(canvasElShopping, {
     type:'bar',
     data:{ labels, datasets:[
       { label:'Marketplace/Portal', data: marketplace, backgroundColor: '#ffdb00', borderRadius:4 },
