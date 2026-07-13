@@ -128,7 +128,8 @@ main{padding:28px 32px 60px;max-width:1400px;margin:0 auto;}
 .filters label{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-right:-6px;}
 
 /* KPI */
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:28px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,minmax(150px,1fr));gap:14px;margin-bottom:28px;overflow-x:auto;}
+@media(max-width:1100px){.kpi-grid{grid-auto-flow:column;grid-template-columns:none;grid-auto-columns:minmax(150px,1fr);}}
 .kpi{
   background:var(--surface);border:1px solid var(--line);border-radius:14px;
   padding:18px 20px;position:relative;overflow:hidden;
