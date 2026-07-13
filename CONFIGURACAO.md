@@ -46,8 +46,8 @@ Para ter edição e alimentação online de verdade, siga os passos abaixo.
 
 No console, vá em **Firestore Database > Regras**. Como esse projeto já é usado
 pelo painel de leads (que exige autenticação), use uma regra específica para
-liberar só as coleções `conferencias` e `config_listas`, sem mexer na proteção
-do que já existe:
+liberar só as coleções `conferencias`, `config_listas` e `portal_comparativo`,
+sem mexer na proteção do que já existe:
 
 ```
 rules_version = '2';
@@ -58,6 +58,9 @@ service cloud.firestore {
       allow read, write: if true;
     }
     match /config_listas/{doc} {
+      allow read, write: if true;
+    }
+    match /portal_comparativo/{doc} {
       allow read, write: if true;
     }
     match /{document=**} {
