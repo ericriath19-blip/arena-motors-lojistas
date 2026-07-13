@@ -305,6 +305,12 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
         <h3>Estoque por Portal — Lançamentos por Loja</h3>
         <div class="card-sub">Vem dos lançamentos feitos pelo formulário "Lançar Dados" (por loja). Respeita o filtro de Loja acima. Dados históricos da planilha antiga não entram aqui, só shopping.</div>
         <div class="chart-wrap"><canvas id="chart-portais-loja"></canvas></div>
+        <div class="table-wrap" id="portais-loja-tabela-wrap" style="margin-top:18px;">
+          <table id="tabela-portal-loja">
+            <thead><tr id="tabela-portal-loja-head"></tr></thead>
+            <tbody id="tabela-portal-loja-body"></tbody>
+          </table>
+        </div>
         <div class="card-sub" id="portais-loja-vazio" style="display:none;margin-top:12px;">Nenhum lançamento com estoque por portal encontrado para esse filtro ainda.</div>
       </div>
     </section>
@@ -392,7 +398,7 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
           </div>
         </div>
 
-        <div class="section-title">Estoque publicado por portal</div>
+        <div class="section-title">Estoque por portal — Marketplace/Portal x Site/Integrador</div>
         <div class="form-grid" id="portais-form-grid"></div>
 
         <div class="form-actions">
@@ -645,7 +651,8 @@ function populateFormSelects(){
 
   const grid = document.getElementById('portais-form-grid');
   grid.innerHTML = LISTAS.portais.map(p=>
-    `<div class="field"><label>${p.nome}</label><input type="number" id="in-portal-${p.id}" value="0"></div>`
+    `<div class="field"><label>${p.nome} — Portal</label><input type="number" id="in-portal-${p.id}-portal" value="0"></div>
+     <div class="field"><label>${p.nome} — Integrador</label><input type="number" id="in-portal-${p.id}-integrador" value="0"></div>`
   ).join('');
 }
 
@@ -954,33 +961,67 @@ function renderChartPortais(){
     linhaSimples('Site/Integrador', siteIntegrador, '#b2cb1c');
 }
 
+function valorPortal(registro, portalId, campo){
+  const v = registro.portais && registro.portais[portalId];
+  if (v === undefined || v === null) return 0;
+  if (typeof v === 'object') return v[campo] || 0;
+  return campo === 'portal' ? (v || 0) : 0;
+}
+
 function renderChartPortaisLoja(data){
-  const registrosComPortal = data.filter(d => d.portais && Object.values(d.portais).some(v => v !== undefined && v !== null));
+  const registrosComPortal = data.filter(d => d.portais && Object.keys(d.portais).length);
   const vazioMsg = document.getElementById('portais-loja-vazio');
   const canvasEl = document.getElementById('chart-portais-loja');
   const wrap = canvasEl.closest('.chart-wrap');
+  const tabelaWrap = document.getElementById('portais-loja-tabela-wrap');
   destroyChart('portaisLoja');
 
   if (!registrosComPortal.length){
     vazioMsg.style.display = 'block';
     wrap.style.display = 'none';
+    tabelaWrap.style.display = 'none';
     return;
   }
   vazioMsg.style.display = 'none';
   wrap.style.display = '';
+  tabelaWrap.style.display = '';
 
-  const somas = LISTAS.portais.map(p => registrosComPortal.reduce((a,d)=>a+((d.portais && d.portais[p.id]) || 0), 0));
   const labels = LISTAS.portais.map(p=>p.nome);
+  const marketplace = LISTAS.portais.map(p => registrosComPortal.reduce((a,d)=>a+valorPortal(d,p.id,'portal'),0));
+  const integrador = LISTAS.portais.map(p => registrosComPortal.reduce((a,d)=>a+valorPortal(d,p.id,'integrador'),0));
+  const diferenca = marketplace.map((v,i)=> v - integrador[i]);
 
   charts.portaisLoja = new Chart(canvasEl, {
     type:'bar',
-    data:{ labels, datasets:[{ data: somas, backgroundColor: '#ffdb00', borderRadius:4 }] },
-    options: baseOpts({legend:false, indexAxis:'y', datalabels:{
+    data:{ labels, datasets:[
+      { label:'Marketplace/Portal', data: marketplace, backgroundColor: '#ffdb00', borderRadius:4 },
+      { label:'Site/Integrador', data: integrador, backgroundColor: '#1b4f91', borderRadius:4 }
+    ]},
+    options: baseOpts({legend:true, indexAxis:'y', datalabels:{
       color: barLabelColor, anchor:'end', align:'start', offset:2,
       font:{family:'JetBrains Mono', size:11, weight:'bold'},
       formatter: v => v.toLocaleString('pt-BR')
     }})
   });
+
+  const head = document.getElementById('tabela-portal-loja-head');
+  head.innerHTML = '<th>Linha</th>' + labels.map(l=>`<th>${l}</th>`).join('');
+  const body = document.getElementById('tabela-portal-loja-body');
+  const linhaSimples = (rotulo, valores, cor) => `<tr><td style="color:${cor};font-family:var(--font-mono);text-transform:uppercase;font-size:11px;">${rotulo}</td>${
+    valores.map(v => `<td style="color:${cor}">${v.toLocaleString('pt-BR')}</td>`).join('')
+  }</tr>`;
+  const linhaDiferenca = () => {
+    const celulas = diferenca.map(v=>{
+      const cor = v < 0 ? '#e0010f' : (v > 0 ? '#b2cb1c' : 'var(--text-dim)');
+      const seta = v < 0 ? '▼' : (v > 0 ? '▲' : '—');
+      return `<td style="color:${cor}">${seta} ${v.toLocaleString('pt-BR')}</td>`;
+    }).join('');
+    return `<tr><td style="font-family:var(--font-mono);text-transform:uppercase;font-size:11px;color:var(--text-dim);">Diferença</td>${celulas}</tr>`;
+  };
+  body.innerHTML =
+    linhaSimples('Marketplace/Portal', marketplace, '#ffdb00') +
+    linhaDiferenca() +
+    linhaSimples('Site/Integrador', integrador, '#1b4f91');
 }
 
 function renderRanking(data){
@@ -1088,7 +1129,10 @@ async function salvarVistoria(){
     leadsRecebidos: leads,
     atratividade: atratividade,
     compartilha: val('in-cont'),
-    portais: Object.fromEntries(LISTAS.portais.map(p => [p.id, num('in-portal-'+p.id)])),
+    portais: Object.fromEntries(LISTAS.portais.map(p => [p.id, {
+      portal: num('in-portal-'+p.id+'-portal'),
+      integrador: num('in-portal-'+p.id+'-integrador')
+    }])),
     atualizadoEm: new Date().toISOString()
   };
   if (!editingId) registro.criadoEm = new Date().toISOString();
@@ -1174,8 +1218,17 @@ function iniciarEdicao(id){
   document.getElementById('in-cont').value = registro.compartilha || 'Sim';
   const p = registro.portais || {};
   LISTAS.portais.forEach(portal => {
-    const campo = document.getElementById('in-portal-'+portal.id);
-    if (campo) campo.value = p[portal.id] ?? 0;
+    const valor = p[portal.id];
+    const campoPortal = document.getElementById('in-portal-'+portal.id+'-portal');
+    const campoIntegrador = document.getElementById('in-portal-'+portal.id+'-integrador');
+    if (typeof valor === 'object' && valor !== null){
+      if (campoPortal) campoPortal.value = valor.portal ?? 0;
+      if (campoIntegrador) campoIntegrador.value = valor.integrador ?? 0;
+    } else {
+      // formato antigo (um número só) — joga no campo "Portal" e deixa Integrador zerado
+      if (campoPortal) campoPortal.value = valor ?? 0;
+      if (campoIntegrador) campoIntegrador.value = 0;
+    }
   });
 
   document.getElementById('form-title').textContent = `Editando vistoria — ${registro.loja} (${registro.periodo})`;
@@ -1225,8 +1278,10 @@ function limparForm(){
   ['in-periodo','in-loja','in-gestor'].forEach(id=>document.getElementById(id).value='');
   ['in-est','in-integ','in-leads'].forEach(id=>document.getElementById(id).value='0');
   LISTAS.portais.forEach(p => {
-    const campo = document.getElementById('in-portal-'+p.id);
-    if (campo) campo.value = '0';
+    const cp = document.getElementById('in-portal-'+p.id+'-portal');
+    const ci = document.getElementById('in-portal-'+p.id+'-integrador');
+    if (cp) cp.value = '0';
+    if (ci) ci.value = '0';
   });
 }
 function val(id){ return document.getElementById(id).value.trim(); }
