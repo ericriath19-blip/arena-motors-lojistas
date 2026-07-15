@@ -870,7 +870,8 @@ function renderKPIs(data){
   const pctCrm = pct(data, d=>d.respondeLead==='Com CRM');
   const pctCont = pct(data, d=>d.compartilha==='Sim');
   document.getElementById('kpi-leads').textContent = totalLeads.toLocaleString('pt-BR');
-  document.getElementById('kpi-indice').innerHTML = mediaIndice.toFixed(2) + '<small> / loja</small>';
+  document.getElementById('kpi-indice').innerHTML = (mediaIndice*100).toFixed(0) + '<small>%</small>';
+
   document.getElementById('kpi-whats').innerHTML = pctWhats + '<small>%</small>';
   document.getElementById('kpi-atual').innerHTML = pctAtual + '<small>%</small>';
   document.getElementById('kpi-crm').innerHTML = pctCrm + '<small>%</small>';
