@@ -290,6 +290,15 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
         </div>
       </div>
 
+      <div class="grid-1">
+        <div class="card">
+          <h3>Projeção de Leads — Próximos 3 Meses</h3>
+          <div class="card-sub">Volume de leads por mês (histórico) com projeção de tendência para os 3 meses seguintes. Respeita o filtro de Shopping/Loja, não o de Período.</div>
+          <div class="chart-wrap tall"><canvas id="chart-projecao-leads"></canvas></div>
+          <div class="card-sub" id="projecao-leads-vazio" style="display:none;margin-top:12px;">Ainda não há meses suficientes de histórico para projetar uma tendência.</div>
+        </div>
+      </div>
+
       <div class="card">
         <h3>Estoque por Portal — Marketplace x Site/Integrador</h3>
         <div class="card-sub">Comparação por shopping, igual à planilha (só existe para os cortes importados da planilha original). Se "Todos" os shoppings estiver selecionado, soma os valores de todos.</div>
@@ -857,6 +866,7 @@ function render(){
   renderChartClassificacao(data);
   renderChartEstoqueComparativo(data);
   renderChartEvolucao(data);
+  renderChartProjecaoLeads();
   renderChartPortais();
   renderRanking(data);
   renderTabela(data);
@@ -979,6 +989,94 @@ function renderChartEvolucao(data){
     }})
   });
 }
+
+function mesDoPeriodo(periodo){
+  const m = /\/(\d+)$/.exec(periodo || '');
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function renderChartProjecaoLeads(){
+  const s = document.getElementById('f-shopping-1').value;
+  const l = document.getElementById('f-loja-1').value;
+  const rows = ALL_DATA.filter(d => (!s || d.shopping===s) && (!l || d.loja===l));
+
+  const porMes = {};
+  rows.forEach(d => {
+    const mes = mesDoPeriodo(d.periodo);
+    if (mes == null) return;
+    (porMes[mes] = porMes[mes] || []).push(d);
+  });
+
+  const mesesOrdenados = Object.keys(porMes).map(Number).sort((a,b)=>a-b);
+
+  const totalPorMes = mesesOrdenados.map(mes => {
+    const porLoja = {};
+    porMes[mes].forEach(r => {
+      const chave = r.shopping + '|' + r.loja;
+      if (!porLoja[chave] || periodoOrdinal(r.periodo) > periodoOrdinal(porLoja[chave].periodo)) porLoja[chave] = r;
+    });
+    return Object.values(porLoja).reduce((a,r)=>a+(r.leadsRecebidos||0), 0);
+  });
+
+  const canvasEl = document.getElementById('chart-projecao-leads');
+  const wrap = canvasEl.closest('.chart-wrap');
+  const vazio = document.getElementById('projecao-leads-vazio');
+  destroyChart('projecaoLeads');
+
+  if (mesesOrdenados.length < 2){
+    wrap.style.display = 'none';
+    vazio.style.display = 'block';
+    return;
+  }
+  wrap.style.display = '';
+  vazio.style.display = 'none';
+
+  const n = mesesOrdenados.length;
+  const ys = totalPorMes;
+  const xs = ys.map((_,i)=>i);
+  const sumX = xs.reduce((a,b)=>a+b,0);
+  const sumY = ys.reduce((a,b)=>a+b,0);
+  const sumXY = xs.reduce((a,x,i)=>a+x*ys[i],0);
+  const sumX2 = xs.reduce((a,x)=>a+x*x,0);
+  const denom = (n*sumX2 - sumX*sumX) || 1;
+  const slope = (n*sumXY - sumX*sumY) / denom;
+  const intercept = (sumY - slope*sumX) / n;
+
+  const MES_ABREV = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const labelsHist = mesesOrdenados.map(m => MES_ABREV[m]);
+
+  let ultimoMes = mesesOrdenados[n-1];
+  const labelsProj = [];
+  for (let i=0;i<3;i++){
+    ultimoMes = ultimoMes % 12 + 1;
+    labelsProj.push(MES_ABREV[ultimoMes]);
+  }
+
+  const labels = [...labelsHist, ...labelsProj];
+  const dadosHistorico = [...ys, null, null, null];
+  const dadosProjecao = new Array(n-1).fill(null);
+  dadosProjecao.push(ys[n-1]);
+  for (let i=0;i<3;i++){
+    dadosProjecao.push(Math.max(0, Math.round(slope*(n-1+i+1) + intercept)));
+  }
+
+  charts.projecaoLeads = new Chart(canvasEl, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Histórico', data: dadosHistorico, borderColor:'#ffdb00', backgroundColor:'transparent', tension:.3, pointRadius:4, datalabels:{color:'#ffdb00'} },
+        { label:'Projeção (tendência)', data: dadosProjecao, borderColor:'#1b4f91', backgroundColor:'transparent', borderDash:[6,4], tension:.3, pointRadius:4, datalabels:{color:'#1b4f91'} }
+      ]
+    },
+    options: baseOpts({legend:true, datalabels:{
+      align:'top', anchor:'end', offset:6,
+      font:{family:'JetBrains Mono', size:11, weight:'600'},
+      formatter: v => v==null ? '' : v.toLocaleString('pt-BR')
+    }})
+  });
+}
+
 
 function renderChartPortais(){
   const s = document.getElementById('f-shopping-1').value;
