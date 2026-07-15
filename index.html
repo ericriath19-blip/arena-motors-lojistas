@@ -27,6 +27,14 @@
   --regular:#1b4f91;
   --ruim:#e0010f;
   --ruim-dim:#4d0a0a;
+  --classe-otima:#1f7a3d;
+  --classe-otima-dim:#0f3319;
+  --classe-boa:#b2cb1c;
+  --classe-boa-dim:#3a4310;
+  --classe-regular:#ffdb00;
+  --classe-regular-dim:#4d4200;
+  --classe-ruim:#e0010f;
+  --classe-ruim-dim:#4d0a0a;
   --font-display:'Space Grotesk',sans-serif;
   --font-body:'Inter',sans-serif;
   --font-mono:'JetBrains Mono',monospace;
@@ -166,10 +174,10 @@ main{padding:28px 32px 60px;max-width:1400px;margin:0 auto;}
 .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 8px 6px 14px;border-radius:100px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;}
 .chip button{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;line-height:1;padding:2px 4px;border-radius:50%;}
 .chip button:hover{color:var(--ruim);background:var(--ruim-dim);}
-.badge.otima{background:rgba(178,203,28,.18);color:var(--good);}
-.badge.boa{background:rgba(255,219,0,.18);color:var(--amber);}
-.badge.regular{background:rgba(27,79,145,.25);color:var(--regular);}
-.badge.ruim{background:rgba(224,1,15,.18);color:var(--ruim);}
+.badge.otima{background:rgba(31,122,61,.22);color:var(--classe-otima);}
+.badge.boa{background:rgba(178,203,28,.18);color:var(--classe-boa);}
+.badge.regular{background:rgba(255,219,0,.18);color:var(--classe-regular);}
+.badge.ruim{background:rgba(224,1,15,.18);color:var(--classe-ruim);}
 .badge.sim{background:rgba(178,203,28,.18);color:var(--good);}
 .badge.nao{background:rgba(224,1,15,.18);color:var(--ruim);}
 
@@ -935,10 +943,11 @@ function renderChartClassificacao(data){
     data: {
       labels: ['Ótima','Boa','Regular','Ruim'],
       datasets: [{ data: [counts.otima,counts.boa,counts.regular,counts.ruim],
-        backgroundColor: ['#b2cb1c','#ffdb00','#1b4f91','#e0010f'], borderWidth:0 }]
+        backgroundColor: ['#1f7a3d','#b2cb1c','#ffdb00','#e0010f'], borderWidth:0 }]
     },
     options: baseOpts({legend:true, datalabels:{
-      color:'#0a0a0a', font:{family:'JetBrains Mono', size:12, weight:'700'},
+      color: (ctx) => contrastColor(ctx.dataset.backgroundColor[ctx.dataIndex]),
+      font:{family:'JetBrains Mono', size:12, weight:'700'},
       formatter: v => v > 0 ? v : ''
     }})
   });
@@ -1312,7 +1321,7 @@ function renderRanking(data){
   }).join('') || '<div class="card-sub">Nenhum registro para os filtros selecionados.</div>';
 }
 function colorFor(key){
-  return {otima:'#b2cb1c',boa:'#ffdb00',regular:'#1b4f91',ruim:'#e0010f'}[key];
+  return {otima:'#1f7a3d',boa:'#b2cb1c',regular:'#ffdb00',ruim:'#e0010f'}[key];
 }
 
 function renderTabela(data){
