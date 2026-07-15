@@ -915,7 +915,7 @@ function renderKPIs(data){
   document.getElementById('kpi-cont').innerHTML = pctCont + '<small>%</small>';
 
   aplicarClasseKpi('kpi-card-leads', classeLeads(totalLeads));
-  aplicarClasseKpi('kpi-card-indice', classePercentual(mediaIndice*100));
+  aplicarClasseKpi('kpi-card-indice', 'k-' + classificar(mediaIndice).key);
   aplicarClasseKpi('kpi-card-whats', classePercentual(pctWhats));
   aplicarClasseKpi('kpi-card-atual', classePercentual(pctAtual));
   aplicarClasseKpi('kpi-card-crm', classePercentual(pctCrm));
