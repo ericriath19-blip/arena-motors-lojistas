@@ -111,7 +111,7 @@ header.top{
 .brand-eyebrow{font-family:var(--font-mono);font-size:11px;color:var(--amber);letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px;}
 header.top h1{font-family:var(--font-display);font-size:28px;font-weight:600;text-transform:uppercase;letter-spacing:.01em;}
 header.top .sub{color:var(--text-dim);font-size:13px;margin-top:4px;}
-.sync-status{font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim);display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 32px;}
+.sync-status{font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim);display:flex;align-items:center;gap:8px;}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 8px var(--good);}
 .dot.off{background:var(--ruim);box-shadow:0 0 8px var(--ruim);}
 
@@ -232,7 +232,7 @@ tbody tr:hover{background:rgba(255,255,255,0.02);}
 .section-title{font-family:var(--font-display);font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);margin:28px 0 12px;}
 .section-title:first-child{margin-top:0;}
 
-footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5px;font-family:var(--font-mono);}
+footer{padding:24px 32px;color:var(--text-dim);font-size:11.5px;font-family:var(--font-mono);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
 </style>
 </head>
 <body>
@@ -258,8 +258,6 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
       <div class="sub">Estoque, atendimento e atratividade por loja — cortes semanais</div>
     </div>
   </header>
-
-  <div class="sync-status"><span class="dot" id="sync-dot"></span><span id="sync-text">conectando ao banco...</span></div>
 
   <nav class="tabs">
     <button class="active" data-view="visao">Visão Geral</button>
@@ -544,7 +542,10 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
 
   </main>
 
-  <footer>RAI Performance 2.0 — Arena Motors · dados salvos em tempo real via Firebase</footer>
+  <footer>
+    <span>RAI Performance 2.0 — Arena Motors · dados salvos em tempo real via Firebase</span>
+    <span class="sync-status"><span class="dot" id="sync-dot"></span><span id="sync-text">conectando ao banco...</span></span>
+  </footer>
 </div>
 
 <script>
