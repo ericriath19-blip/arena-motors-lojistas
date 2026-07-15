@@ -267,7 +267,7 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
       <div class="grid-3">
         <div class="card">
           <h3>Atratividade média por shopping</h3>
-          <div class="card-sub">Leads recebidos / estoque no integrador</div>
+          <div class="card-sub">Leads recebidos / estoque no integrador — sempre os 4 shoppings, só respeita o filtro de Período</div>
           <div class="chart-wrap"><canvas id="chart-shoppings"></canvas></div>
         </div>
         <div class="card">
@@ -853,7 +853,7 @@ function barLabelColor(ctx){
 function render(){
   const data = getFiltered();
   renderKPIs(data);
-  renderChartShoppings(data);
+  renderChartShoppings();
   renderChartClassificacao(data);
   renderChartEstoqueComparativo(data);
   renderChartEvolucao(data);
@@ -887,20 +887,29 @@ function pct(data, fn){
   return Math.round(100 * data.filter(fn).length / data.length);
 }
 
-function renderChartShoppings(data){
-  const byShopping = groupPooled(data, 'shopping');
+function renderChartShoppings(){
+  const p = document.getElementById('f-periodo-1').value;
+  let rows = ALL_DATA;
+  if (p) {
+    rows = rows.filter(d => d.periodo === p);
+  } else if (rows.length) {
+    const periodos = [...new Set(rows.map(d=>d.periodo))];
+    const maisRecente = periodos.reduce((a,b)=> periodoOrdinal(b) > periodoOrdinal(a) ? b : a, periodos[0]);
+    rows = rows.filter(d => d.periodo === maisRecente);
+  }
+  const byShopping = groupPooled(rows, 'shopping');
   destroyChart('shoppings');
   const ctx = document.getElementById('chart-shoppings');
   charts.shoppings = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: Object.keys(byShopping),
-      datasets: [{ data: Object.values(byShopping), backgroundColor: CHART_COLORS, borderRadius: 4 }]
+      datasets: [{ data: Object.values(byShopping).map(v=>v*100), backgroundColor: CHART_COLORS, borderRadius: 4 }]
     },
     options: baseOpts({legend:false, datalabels:{
       color: barLabelColor, anchor:'end', align:'start', offset:2,
       font:{family:'JetBrains Mono', size:12, weight:'bold'},
-      formatter: v => v.toFixed(2)
+      formatter: v => v.toFixed(0) + '%'
     }})
   });
 }
@@ -951,7 +960,7 @@ function renderChartEvolucao(data){
     label: s,
     data: periodos.map(p=>{
       const rows = ALL_DATA.filter(d=>d.shopping===s && d.periodo===p);
-      return rows.length ? indicePonderado(rows) : null;
+      return rows.length ? indicePonderado(rows)*100 : null;
     }),
     borderColor: CHART_COLORS[i%CHART_COLORS.length],
     backgroundColor: 'transparent',
@@ -966,7 +975,7 @@ function renderChartEvolucao(data){
     options: baseOpts({legend:true, datalabels:{
       align:'top', anchor:'end', offset:6,
       font:{family:'JetBrains Mono', size:10, weight:'600'},
-      formatter: v => v==null ? '' : v.toFixed(2)
+      formatter: v => v==null ? '' : v.toFixed(0) + '%'
     }})
   });
 }
