@@ -1349,7 +1349,7 @@ function renderTabela(data){
       <td><span class="badge ${d.whatsapp==='Sim'?'sim':'nao'}">${d.whatsapp||''}</span></td>
       <td>${d.atualizacao||''}</td>
       <td><span class="badge ${d.respondeLead==='Com CRM'?'sim':'nao'}">${d.respondeLead||''}</span></td>
-      <td>${d.leadsRecebidos ?? ''}</td><td>${(d.atratividade||0).toFixed(2)}</td>
+      <td>${d.leadsRecebidos ?? ''}</td><td>${((d.atratividade||0)*100).toFixed(0)}%</td>
       <td><span class="badge ${c.key}">${c.label}</span></td>
       <td><span class="badge ${d.compartilha==='Sim'?'sim':'nao'}">${d.compartilha||''}</span></td>
       <td style="white-space:nowrap;display:flex;gap:6px;">${acoes}</td>
