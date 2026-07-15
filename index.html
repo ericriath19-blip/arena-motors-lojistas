@@ -53,7 +53,7 @@ body{
 #gate{
   position:fixed;inset:0;z-index:999;
   background:var(--asphalt);
-  display:flex;align-items:center;justify-content:center;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;
   background-image:
     repeating-linear-gradient(135deg, rgba(255,255,255,0.015) 0 2px, transparent 2px 14px);
 }
@@ -111,7 +111,7 @@ header.top{
 .brand-eyebrow{font-family:var(--font-mono);font-size:11px;color:var(--amber);letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px;}
 header.top h1{font-family:var(--font-display);font-size:28px;font-weight:600;text-transform:uppercase;letter-spacing:.01em;}
 header.top .sub{color:var(--text-dim);font-size:13px;margin-top:4px;}
-.sync-status{font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim);display:flex;align-items:center;gap:8px;}
+.sync-status{font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim);display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 32px;}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 8px var(--good);}
 .dot.off{background:var(--ruim);box-shadow:0 0 8px var(--ruim);}
 
@@ -238,8 +238,8 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
 <body>
 
 <div id="gate">
+  <img src="logo-arena.png" alt="Arena Motors" style="height:46px;width:auto;opacity:.92;">
   <div class="gate-card">
-    <img src="logo-arena.png" alt="Arena Motors" style="height:36px;width:auto;margin:0 auto 18px;opacity:.92;display:block;">
     <div class="gate-eyebrow">Acesso restrito</div>
     <h1>RAI Performance 2.0</h1>
     <p>Arena Motors · Gestão de Shoppings — informe a senha de acesso para consultar e alimentar os dados de vistoria.</p>
@@ -257,8 +257,9 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
       <h1>RAI Performance 2.0</h1>
       <div class="sub">Estoque, atendimento e atratividade por loja — cortes semanais</div>
     </div>
-    <div class="sync-status"><span class="dot" id="sync-dot"></span><span id="sync-text">conectando ao banco...</span></div>
   </header>
+
+  <div class="sync-status"><span class="dot" id="sync-dot"></span><span id="sync-text">conectando ao banco...</span></div>
 
   <nav class="tabs">
     <button class="active" data-view="visao">Visão Geral</button>
