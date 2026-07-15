@@ -147,6 +147,15 @@ main{padding:28px 32px 60px;max-width:1400px;margin:0 auto;}
 .kpi .value small{font-size:15px;color:var(--text-dim);font-weight:400;}
 .kpi.accent{border-color:var(--amber-dim);}
 .kpi.accent .value{color:var(--amber);}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:transparent;}
+.kpi.k-otima::before{background:var(--classe-otima);}
+.kpi.k-otima .value{color:var(--classe-otima);}
+.kpi.k-boa::before{background:var(--classe-boa);}
+.kpi.k-boa .value{color:var(--classe-boa);}
+.kpi.k-regular::before{background:var(--classe-regular);}
+.kpi.k-regular .value{color:var(--classe-regular);}
+.kpi.k-ruim::before{background:var(--classe-ruim);}
+.kpi.k-ruim .value{color:var(--classe-ruim);}
 
 /* cards / charts */
 .grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-bottom:20px;}
@@ -264,12 +273,12 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
       </div>
 
       <div class="kpi-grid">
-        <div class="kpi accent"><div class="label">Leads recebidos</div><div class="value" id="kpi-leads">–</div></div>
-        <div class="kpi"><div class="label">Índice médio de atratividade</div><div class="value" id="kpi-indice">–</div></div>
-        <div class="kpi"><div class="label">WhatsApp conectado</div><div class="value" id="kpi-whats">–</div></div>
-        <div class="kpi"><div class="label">Estoque atualizado (0–7 dias)</div><div class="value" id="kpi-atual">–</div></div>
-        <div class="kpi"><div class="label">Com CRM ativo</div><div class="value" id="kpi-crm">–</div></div>
-        <div class="kpi"><div class="label">Compartilha conteúdo</div><div class="value" id="kpi-cont">–</div></div>
+        <div class="kpi accent" id="kpi-card-leads"><div class="label">Leads recebidos</div><div class="value" id="kpi-leads">–</div></div>
+        <div class="kpi" id="kpi-card-indice"><div class="label">Índice médio de atratividade</div><div class="value" id="kpi-indice">–</div></div>
+        <div class="kpi" id="kpi-card-whats"><div class="label">WhatsApp conectado</div><div class="value" id="kpi-whats">–</div></div>
+        <div class="kpi" id="kpi-card-atual"><div class="label">Estoque atualizado (0–7 dias)</div><div class="value" id="kpi-atual">–</div></div>
+        <div class="kpi" id="kpi-card-crm"><div class="label">Com CRM ativo</div><div class="value" id="kpi-crm">–</div></div>
+        <div class="kpi" id="kpi-card-cont"><div class="label">Compartilha conteúdo</div><div class="value" id="kpi-cont">–</div></div>
       </div>
 
       <div class="grid-3">
@@ -904,6 +913,31 @@ function renderKPIs(data){
   document.getElementById('kpi-atual').innerHTML = pctAtual + '<small>%</small>';
   document.getElementById('kpi-crm').innerHTML = pctCrm + '<small>%</small>';
   document.getElementById('kpi-cont').innerHTML = pctCont + '<small>%</small>';
+
+  aplicarClasseKpi('kpi-card-leads', classeLeads(totalLeads));
+  aplicarClasseKpi('kpi-card-indice', classePercentual(mediaIndice*100));
+  aplicarClasseKpi('kpi-card-whats', classePercentual(pctWhats));
+  aplicarClasseKpi('kpi-card-atual', classePercentual(pctAtual));
+  aplicarClasseKpi('kpi-card-crm', classePercentual(pctCrm));
+  aplicarClasseKpi('kpi-card-cont', classePercentual(pctCont));
+}
+function classePercentual(v){
+  if (v >= 90) return 'k-otima';
+  if (v >= 80) return 'k-boa';
+  if (v >= 60) return 'k-regular';
+  return 'k-ruim';
+}
+function classeLeads(v){
+  if (v >= 5000) return 'k-otima';
+  if (v >= 3001) return 'k-boa';
+  if (v >= 2001) return 'k-regular';
+  return 'k-ruim';
+}
+function aplicarClasseKpi(cardId, classe){
+  const el = document.getElementById(cardId);
+  if (!el) return;
+  el.classList.remove('k-otima','k-boa','k-regular','k-ruim');
+  el.classList.add(classe);
 }
 function indicePonderado(rows){
   const leads = rows.reduce((a,d)=>a+(d.leadsRecebidos||0),0);
