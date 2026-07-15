@@ -293,7 +293,8 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
       <div class="grid-1">
         <div class="card">
           <h3>Projeção de Leads — Próximos 3 Meses</h3>
-          <div class="card-sub">Volume de leads por mês (histórico) com projeção de tendência para os 3 meses seguintes. Respeita o filtro de Shopping/Loja, não o de Período.</div>
+          <div class="card-sub">Ritmo diário do mês vigente x mês fechado anterior define o % de crescimento, aplicado nos 3 meses seguintes. Respeita o filtro de Shopping/Loja, não o de Período.</div>
+          <div class="card-sub" id="projecao-leads-sub-dinamico" style="color:var(--amber);margin-top:6px;"></div>
           <div class="chart-wrap tall"><canvas id="chart-projecao-leads"></canvas></div>
           <div class="card-sub" id="projecao-leads-vazio" style="display:none;margin-top:12px;">Ainda não há meses suficientes de histórico para projetar uma tendência.</div>
         </div>
@@ -995,6 +996,10 @@ function mesDoPeriodo(periodo){
   return m ? parseInt(m[1], 10) : null;
 }
 
+function diasNoMes(ano, mes){
+  return new Date(ano, mes, 0).getDate(); // mes 1-indexado; dia 0 do mês seguinte = último dia do mês atual
+}
+
 function renderChartProjecaoLeads(){
   const s = document.getElementById('f-shopping-1').value;
   const l = document.getElementById('f-loja-1').value;
@@ -1007,65 +1012,67 @@ function renderChartProjecaoLeads(){
     (porMes[mes] = porMes[mes] || []).push(d);
   });
 
-  const mesesOrdenados = Object.keys(porMes).map(Number).sort((a,b)=>a-b);
-
-  const totalPorMes = mesesOrdenados.map(mes => {
+  function totalDoMes(mes){
+    if (!porMes[mes]) return null;
     const porLoja = {};
     porMes[mes].forEach(r => {
       const chave = r.shopping + '|' + r.loja;
       if (!porLoja[chave] || periodoOrdinal(r.periodo) > periodoOrdinal(porLoja[chave].periodo)) porLoja[chave] = r;
     });
     return Object.values(porLoja).reduce((a,r)=>a+(r.leadsRecebidos||0), 0);
-  });
+  }
 
   const canvasEl = document.getElementById('chart-projecao-leads');
   const wrap = canvasEl.closest('.chart-wrap');
   const vazio = document.getElementById('projecao-leads-vazio');
   destroyChart('projecaoLeads');
 
-  if (mesesOrdenados.length < 2){
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const mesAtual = hoje.getMonth() + 1;
+  const diaAtual = hoje.getDate();
+  const diasTotalMesAtual = diasNoMes(anoAtual, mesAtual);
+  const mesAnterior = mesAtual === 1 ? 12 : mesAtual - 1;
+
+  const totalMesAnterior = totalDoMes(mesAnterior);
+  const totalMesAtualAcumulado = totalDoMes(mesAtual);
+
+  if (totalMesAnterior == null || totalMesAtualAcumulado == null || totalMesAnterior === 0){
     wrap.style.display = 'none';
     vazio.style.display = 'block';
+    vazio.textContent = 'Faltam dados do mês fechado anterior ou do mês vigente para calcular a tendência.';
     return;
   }
   wrap.style.display = '';
   vazio.style.display = 'none';
 
-  const n = mesesOrdenados.length;
-  const ys = totalPorMes;
-  const xs = ys.map((_,i)=>i);
-  const sumX = xs.reduce((a,b)=>a+b,0);
-  const sumY = ys.reduce((a,b)=>a+b,0);
-  const sumXY = xs.reduce((a,x,i)=>a+x*ys[i],0);
-  const sumX2 = xs.reduce((a,x)=>a+x*x,0);
-  const denom = (n*sumX2 - sumX*sumX) || 1;
-  const slope = (n*sumXY - sumX*sumY) / denom;
-  const intercept = (sumY - slope*sumX) / n;
+  const mediaDiariaAtual = totalMesAtualAcumulado / diaAtual;
+  const projecaoMesAtual = mediaDiariaAtual * diasTotalMesAtual;
+  const g = (projecaoMesAtual - totalMesAnterior) / totalMesAnterior;
+
+  const proj1 = projecaoMesAtual * (1 + g);
+  const proj2 = proj1 * (1 + g);
+  const proj3 = proj2 * (1 + g);
 
   const MES_ABREV = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  const labelsHist = mesesOrdenados.map(m => MES_ABREV[m]);
+  const mesesHistoricos = Object.keys(porMes).map(Number).filter(m => m !== mesAtual).sort((a,b)=>a-b);
+  const totaisHistoricos = mesesHistoricos.map(m => totalDoMes(m));
+  const H = mesesHistoricos.length;
 
-  let ultimoMes = mesesOrdenados[n-1];
-  const labelsProj = [];
-  for (let i=0;i<3;i++){
-    ultimoMes = ultimoMes % 12 + 1;
-    labelsProj.push(MES_ABREV[ultimoMes]);
-  }
+  const m1 = mesAtual % 12 + 1, m2 = m1 % 12 + 1, m3 = m2 % 12 + 1;
+  const labels = [...mesesHistoricos.map(m=>MES_ABREV[m]), MES_ABREV[mesAtual] + ' (proj.)', MES_ABREV[m1], MES_ABREV[m2], MES_ABREV[m3]];
 
-  const labels = [...labelsHist, ...labelsProj];
-  const dadosHistorico = [...ys, null, null, null];
-  const dadosProjecao = new Array(n-1).fill(null);
-  dadosProjecao.push(ys[n-1]);
-  for (let i=0;i<3;i++){
-    dadosProjecao.push(Math.max(0, Math.round(slope*(n-1+i+1) + intercept)));
-  }
+  const dadosHistorico = [...totaisHistoricos, null, null, null, null];
+  const dadosProjecao = new Array(Math.max(0, H-1)).fill(null);
+  if (H > 0) dadosProjecao.push(totaisHistoricos[H-1]);
+  dadosProjecao.push(Math.round(projecaoMesAtual), Math.round(proj1), Math.round(proj2), Math.round(proj3));
 
   charts.projecaoLeads = new Chart(canvasEl, {
     type: 'line',
     data: {
       labels,
       datasets: [
-        { label:'Histórico', data: dadosHistorico, borderColor:'#ffdb00', backgroundColor:'transparent', tension:.3, pointRadius:4, datalabels:{color:'#ffdb00'} },
+        { label:'Histórico (fechado)', data: dadosHistorico, borderColor:'#ffdb00', backgroundColor:'transparent', tension:.3, pointRadius:4, datalabels:{color:'#ffdb00'} },
         { label:'Projeção (tendência)', data: dadosProjecao, borderColor:'#1b4f91', backgroundColor:'transparent', borderDash:[6,4], tension:.3, pointRadius:4, datalabels:{color:'#1b4f91'} }
       ]
     },
@@ -1075,8 +1082,12 @@ function renderChartProjecaoLeads(){
       formatter: v => v==null ? '' : v.toLocaleString('pt-BR')
     }})
   });
-}
 
+  const sub = document.getElementById('projecao-leads-sub-dinamico');
+  if (sub){
+    sub.textContent = `Ritmo de ${MES_ABREV[mesAtual]} (dia ${diaAtual}/${diasTotalMesAtual}): ${Math.round(totalMesAtualAcumulado).toLocaleString('pt-BR')} leads até agora → projeção de ${Math.round(projecaoMesAtual).toLocaleString('pt-BR')} no mês fechado (${g>=0?'+':''}${(g*100).toFixed(1)}% vs. ${MES_ABREV[mesAnterior]}).`;
+  }
+}
 
 function renderChartPortais(){
   const s = document.getElementById('f-shopping-1').value;
