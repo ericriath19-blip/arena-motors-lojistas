@@ -142,6 +142,10 @@ main{padding:28px 32px 60px;max-width:1400px;margin:0 auto;}
   background:var(--surface);border:1px solid var(--line);border-radius:14px;
   padding:18px 20px;position:relative;overflow:hidden;
 }
+.kpi-clicavel{cursor:pointer;transition:transform .12s ease, border-color .12s ease;}
+.kpi-clicavel:hover{transform:translateY(-2px);border-color:var(--text-dim);}
+.kpi-clicavel::after{content:'Ver detalhes →';position:absolute;bottom:8px;right:14px;font-family:var(--font-mono);font-size:9.5px;color:var(--text-dim-2);opacity:0;transition:opacity .12s ease;}
+.kpi-clicavel:hover::after{opacity:1;}
 .kpi .label{font-family:var(--font-mono);font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
 .kpi .value{font-family:var(--font-display);font-size:32px;font-weight:600;}
 .kpi .value small{font-size:15px;color:var(--text-dim);font-weight:400;}
@@ -273,12 +277,12 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
       </div>
 
       <div class="kpi-grid">
-        <div class="kpi accent" id="kpi-card-leads"><div class="label">Leads recebidos</div><div class="value" id="kpi-leads">–</div></div>
-        <div class="kpi" id="kpi-card-indice"><div class="label">Índice médio de atratividade</div><div class="value" id="kpi-indice">–</div></div>
-        <div class="kpi" id="kpi-card-whats"><div class="label">WhatsApp conectado</div><div class="value" id="kpi-whats">–</div></div>
-        <div class="kpi" id="kpi-card-atual"><div class="label">Estoque atualizado (0–7 dias)</div><div class="value" id="kpi-atual">–</div></div>
-        <div class="kpi" id="kpi-card-crm"><div class="label">Com CRM ativo</div><div class="value" id="kpi-crm">–</div></div>
-        <div class="kpi" id="kpi-card-cont"><div class="label">Compartilha conteúdo</div><div class="value" id="kpi-cont">–</div></div>
+        <div class="kpi accent kpi-clicavel" id="kpi-card-leads" onclick="irParaTabela('leads')"><div class="label">Leads recebidos</div><div class="value" id="kpi-leads">–</div></div>
+        <div class="kpi kpi-clicavel" id="kpi-card-indice" onclick="irParaTabela('indice')"><div class="label">Índice médio de atratividade</div><div class="value" id="kpi-indice">–</div></div>
+        <div class="kpi kpi-clicavel" id="kpi-card-whats" onclick="irParaTabela('whatsapp')"><div class="label">WhatsApp conectado</div><div class="value" id="kpi-whats">–</div></div>
+        <div class="kpi kpi-clicavel" id="kpi-card-atual" onclick="irParaTabela('atualizacao')"><div class="label">Estoque atualizado (0–7 dias)</div><div class="value" id="kpi-atual">–</div></div>
+        <div class="kpi kpi-clicavel" id="kpi-card-crm" onclick="irParaTabela('crm')"><div class="label">Com CRM ativo</div><div class="value" id="kpi-crm">–</div></div>
+        <div class="kpi kpi-clicavel" id="kpi-card-cont" onclick="irParaTabela('conteudo')"><div class="label">Compartilha conteúdo</div><div class="value" id="kpi-cont">–</div></div>
       </div>
 
       <div class="grid-3">
@@ -376,6 +380,7 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
         <label>Atualização</label>
         <select id="f-atualizacao">
           <option value="">Todas</option>
+          <option value="__nao_atualizado__">Desatualizado (fora de 0-7 dias)</option>
           <option value="0 até 7 dias">0 até 7 dias</option>
           <option value="7 até 14 dias">7 até 14 dias</option>
           <option value="14 até 20 dias">14 até 20 dias</option>
@@ -880,6 +885,26 @@ function bindFilters(){
     document.getElementById(id).addEventListener('change', render);
   });
 }
+function irParaTabela(tipo){
+  // zera os filtros extras antes de aplicar o específico
+  document.getElementById('f-classificacao').value = '';
+  document.getElementById('f-whatsapp').value = '';
+  document.getElementById('f-atualizacao').value = '';
+  document.getElementById('f-crm').value = '';
+  document.getElementById('f-conteudo').value = '';
+
+  if (tipo === 'indice') document.getElementById('f-classificacao').value = 'ruim';
+  if (tipo === 'whatsapp') document.getElementById('f-whatsapp').value = 'Não';
+  if (tipo === 'atualizacao') document.getElementById('f-atualizacao').value = '__nao_atualizado__';
+  if (tipo === 'crm') document.getElementById('f-crm').value = 'Sem CRM';
+  if (tipo === 'conteudo') document.getElementById('f-conteudo').value = 'Não';
+  // 'leads' não tem um recorte de "ruim" específico — só abre a tabela geral
+
+  document.querySelector('nav.tabs button[data-view="tabela"]').click();
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
 function limparFiltrosExtras(){
   ['f-whatsapp','f-atualizacao','f-crm','f-conteudo'].forEach(id=>document.getElementById(id).value = '');
   render();
@@ -1411,7 +1436,11 @@ function renderTabela(data){
   if (fWhats) data = data.filter(d => d.whatsapp === fWhats);
 
   const fAtual = document.getElementById('f-atualizacao').value;
-  if (fAtual) data = data.filter(d => d.atualizacao === fAtual);
+  if (fAtual === '__nao_atualizado__') {
+    data = data.filter(d => d.atualizacao && d.atualizacao !== '0 até 7 dias');
+  } else if (fAtual) {
+    data = data.filter(d => d.atualizacao === fAtual);
+  }
 
   const fCrm = document.getElementById('f-crm').value;
   if (fCrm) data = data.filter(d => d.respondeLead === fCrm);
