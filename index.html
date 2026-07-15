@@ -393,14 +393,6 @@ footer{padding:24px 32px;text-align:center;color:var(--text-dim);font-size:11.5p
           <option value="Sim">Sim</option>
           <option value="Não">Não</option>
         </select>
-        <label>Leads</label>
-        <input type="number" id="f-leads-min" placeholder="Mín." style="width:80px;background:var(--surface);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13px;">
-        <span style="color:var(--text-dim);">–</span>
-        <input type="number" id="f-leads-max" placeholder="Máx." style="width:80px;background:var(--surface);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13px;">
-        <label>Índice (%)</label>
-        <input type="number" id="f-indice-min" placeholder="Mín." style="width:80px;background:var(--surface);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13px;">
-        <span style="color:var(--text-dim);">–</span>
-        <input type="number" id="f-indice-max" placeholder="Máx." style="width:80px;background:var(--surface);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13px;">
         <button class="btn ghost" style="padding:9px 16px;" onclick="limparFiltrosExtras()">Limpar estes</button>
       </div>
       <div class="card">
@@ -887,13 +879,9 @@ function bindFilters(){
   ['f-whatsapp','f-atualizacao','f-crm','f-conteudo'].forEach(id=>{
     document.getElementById(id).addEventListener('change', render);
   });
-  ['f-leads-min','f-leads-max','f-indice-min','f-indice-max'].forEach(id=>{
-    document.getElementById(id).addEventListener('input', render);
-  });
 }
 function limparFiltrosExtras(){
   ['f-whatsapp','f-atualizacao','f-crm','f-conteudo'].forEach(id=>document.getElementById(id).value = '');
-  ['f-leads-min','f-leads-max','f-indice-min','f-indice-max'].forEach(id=>document.getElementById(id).value = '');
   render();
 }
 function periodoOrdinal(periodo){
@@ -1430,16 +1418,6 @@ function renderTabela(data){
 
   const fCont = document.getElementById('f-conteudo').value;
   if (fCont) data = data.filter(d => d.compartilha === fCont);
-
-  const leadsMin = parseFloat(document.getElementById('f-leads-min').value);
-  const leadsMax = parseFloat(document.getElementById('f-leads-max').value);
-  if (!isNaN(leadsMin)) data = data.filter(d => (d.leadsRecebidos||0) >= leadsMin);
-  if (!isNaN(leadsMax)) data = data.filter(d => (d.leadsRecebidos||0) <= leadsMax);
-
-  const indiceMin = parseFloat(document.getElementById('f-indice-min').value);
-  const indiceMax = parseFloat(document.getElementById('f-indice-max').value);
-  if (!isNaN(indiceMin)) data = data.filter(d => ((d.atratividade||0)*100) >= indiceMin);
-  if (!isNaN(indiceMax)) data = data.filter(d => ((d.atratividade||0)*100) <= indiceMax);
 
   const tb = document.getElementById('tbody-detalhe');
   tb.innerHTML = data.map(d=>{
