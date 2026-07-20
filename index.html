@@ -242,7 +242,7 @@ footer{padding:24px 32px;color:var(--text-dim);font-size:11.5px;font-family:var(
   <div class="gate-card">
     <div class="gate-eyebrow">Acesso restrito</div>
     <h1>RAI Performance 2.0</h1>
-    <p>Arena Motors · Gestão de Shoppings — informe a senha de acesso para consultar e alimentar os dados de vistoria.</p>
+    <p>Arena Motors · Gestão de Shoppings — informe a senha de acesso para consultar e alimentar os dados.</p>
     <input type="password" id="gate-pass" placeholder="Senha de acesso" autocomplete="off">
     <button onclick="tryLogin()">Entrar</button>
     <div id="gate-error">Senha incorreta. Tente novamente.</div>
@@ -406,7 +406,7 @@ footer{padding:24px 32px;color:var(--text-dim);font-size:11.5px;font-family:var(
         <button class="btn ghost" style="padding:9px 16px;" onclick="limparFiltrosExtras()">Limpar estes</button>
       </div>
       <div class="card">
-        <h3>Vistorias registradas</h3>
+        <h3>Dados registrados</h3>
         <div class="table-wrap">
           <table>
             <thead>
@@ -462,7 +462,7 @@ footer{padding:24px 32px;color:var(--text-dim);font-size:11.5px;font-family:var(
         </div>
 
         <div class="form-actions">
-          <button class="btn primary" id="btn-salvar" onclick="salvarVistoria()">Salvar vistoria</button>
+          <button class="btn primary" id="btn-salvar" onclick="salvarVistoria()">Salvar dados</button>
           <button class="btn ghost" onclick="limparForm()">Limpar</button>
           <button class="btn ghost" id="btn-cancelar-edicao" style="display:none;color:var(--ruim);border-color:var(--ruim-dim);" onclick="cancelarEdicao()">Cancelar edição</button>
           <span id="form-msg"></span>
@@ -536,7 +536,7 @@ footer{padding:24px 32px;color:var(--text-dim);font-size:11.5px;font-family:var(
         </div>
       </div>
       <div class="card">
-        <div class="card-sub">Remover um item daqui só tira ele da lista de opções — não apaga vistorias já lançadas com esse nome.</div>
+        <div class="card-sub">Remover um item daqui só tira ele da lista de opções — não apaga dados já lançados com esse nome.</div>
       </div>
     </section>
 
@@ -838,7 +838,7 @@ async function adicionarItemLista(tipo){
 
 async function removerItemLista(tipo, valor){
   const label = tipo==='shoppings' ? 'shopping' : tipo==='lojas' ? 'loja' : 'portal';
-  if (!confirm(`Remover "${valor}" da lista de ${label}s? Vistorias já lançadas com esse nome não são apagadas.`)) return;
+  if (!confirm(`Remover "${valor}" da lista de ${label}s? Dados já lançados com esse nome não são apagados.`)) return;
 
   if (tipo === 'portais'){
     LISTAS.portais = LISTAS.portais.filter(p=>p.id!==valor);
@@ -1558,7 +1558,7 @@ async function salvarVistoria(){
       try{
         await db.collection(COLLECTION).doc(editingId).update(registro);
         document.getElementById('form-msg').style.color = 'var(--good)';
-        document.getElementById('form-msg').textContent = 'Vistoria atualizada ✓';
+        document.getElementById('form-msg').textContent = 'Dados atualizados ✓';
         cancelarEdicao();
         return;
       } catch(e){
@@ -1573,7 +1573,7 @@ async function salvarVistoria(){
       populateFilters();
       render();
       document.getElementById('form-msg').style.color = 'var(--good)';
-      document.getElementById('form-msg').textContent = 'Vistoria atualizada (sessão local) ✓';
+      document.getElementById('form-msg').textContent = 'Dados atualizados (sessão local) ✓';
       cancelarEdicao();
       return;
     }
@@ -1584,7 +1584,7 @@ async function salvarVistoria(){
     try{
       await db.collection(COLLECTION).add(registro);
       document.getElementById('form-msg').style.color = 'var(--good)';
-      document.getElementById('form-msg').textContent = 'Vistoria salva na base online ✓';
+      document.getElementById('form-msg').textContent = 'Dados salvos na base online ✓';
       limparForm();
       return;
     } catch(e){
@@ -1597,7 +1597,7 @@ async function salvarVistoria(){
   populateFilters();
   render();
   document.getElementById('form-msg').style.color = 'var(--amber)';
-  document.getElementById('form-msg').textContent = 'Firebase não configurado — vistoria salva apenas nesta sessão.';
+  document.getElementById('form-msg').textContent = 'Firebase não configurado — dados salvos apenas nesta sessão.';
   limparForm();
 }
 
@@ -1626,7 +1626,7 @@ function iniciarEdicao(id){
   document.getElementById('in-crm').value = registro.respondeLead || 'Com CRM';
   document.getElementById('in-cont').value = registro.compartilha || 'Sim';
 
-  document.getElementById('form-title').textContent = `Editando vistoria — ${registro.loja} (${registro.periodo})`;
+  document.getElementById('form-title').textContent = `Editando dados — ${registro.loja} (${registro.periodo})`;
   document.getElementById('form-subtitle').textContent = 'Altere os campos necessários e clique em Salvar edição.';
   document.getElementById('btn-salvar').textContent = 'Salvar edição';
   document.getElementById('btn-cancelar-edicao').style.display = 'inline-block';
@@ -1641,14 +1641,14 @@ function cancelarEdicao(){
   limparForm();
   document.getElementById('form-title').textContent = 'Novo lançamento de dados';
   document.getElementById('form-subtitle').textContent = 'Preencha os dados do corte semanal — os campos são salvos direto na base online';
-  document.getElementById('btn-salvar').textContent = 'Salvar vistoria';
+  document.getElementById('btn-salvar').textContent = 'Salvar dados';
   document.getElementById('btn-cancelar-edicao').style.display = 'none';
 }
 
 function confirmarRemocao(id){
   const registro = ALL_DATA.find(d=>d.id===id);
   const nome = registro ? `${registro.loja} (${registro.periodo})` : 'este registro';
-  if (confirm(`Remover a vistoria de ${nome}? Essa ação não pode ser desfeita.`)){
+  if (confirm(`Remover os dados de ${nome}? Essa ação não pode ser desfeita.`)){
     removerVistoria(id);
   }
 }
