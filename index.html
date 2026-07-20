@@ -185,7 +185,7 @@ main{padding:28px 32px 60px;max-width:1400px;margin:0 auto;}
 .rank-name .s{font-size:11px;color:var(--text-dim);}
 .rank-bar-wrap{flex:1;background:var(--asphalt-2);border-radius:100px;height:6px;overflow:hidden;max-width:140px;}
 .rank-bar{height:100%;border-radius:100px;}
-.rank-val{font-family:var(--font-mono);font-size:13px;width:44px;text-align:right;}
+.rank-val{font-family:var(--font-mono);font-size:13px;width:50px;text-align:right;}
 
 .badge{display:inline-block;padding:3px 9px;border-radius:100px;font-size:10.5px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.04em;}
 .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 8px 6px 14px;border-radius:100px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;}
@@ -1427,7 +1427,7 @@ function renderRanking(data){
       <div class="rank-n">${i+1}</div>
       <div class="rank-name"><div class="l">${d.loja||''}</div><div class="s">${d.shopping||''} · ${d.gestor||''}</div></div>
       <div class="rank-bar-wrap"><div class="rank-bar" style="width:${w}%;background:${colorFor(c.key)}"></div></div>
-      <div class="rank-val">${(d.atratividade||0).toFixed(2)}</div>
+      <div class="rank-val">${((d.atratividade||0)*100).toFixed(0)}%</div>
       <span class="badge ${c.key}">${c.label}</span>
     </div>`;
   }).join('') || '<div class="card-sub">Nenhum registro para os filtros selecionados.</div>';
