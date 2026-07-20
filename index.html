@@ -1457,6 +1457,8 @@ function renderTabela(data){
   if (fCont) data = data.filter(d => d.compartilha === fCont);
 
   const tb = document.getElementById('tbody-detalhe');
+  data = [...data].sort((a,b) => (b.atratividade||0) - (a.atratividade||0));
+
   tb.innerHTML = data.map(d=>{
     const c = classificar(d.atratividade||0);
     const acoes = d.id
